@@ -106,8 +106,7 @@ case "$1" in
   ;;
 
 healthcheck) # Docker healthcheck
-  echo "$(uname -s) $(uname -m) is running"
-  echo _other_commands here
+  curl -q -LSsf "http://localhost:3000/"
   exitCode=$?
   ;;
 
