@@ -12,7 +12,8 @@ ENV SHELL=/bin/bash \
 
 RUN mkdir -p /bin/ /config/ /data/ && \
   rm -Rf /bin/.gitkeep /config/.gitkeep /data/.gitkeep && \
-  apk update -U --no-cache
+  apk update -U --no-cache && \
+  apk add --no-cache tini
 
 COPY ./bin/. /usr/local/bin/
 COPY ./config/. /config/
