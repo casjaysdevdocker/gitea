@@ -8,7 +8,7 @@ ARG LICENSE=WTFPL \
 ENV SHELL=/bin/bash \
   TERM=xterm-256color \
   HOSTNAME=${HOSTNAME:-casjaysdev-$IMAGE_NAME} \
-  TZ=$TIMEZONE
+  TZ=$TIMEZONE \
   PATH="$PATH:/sbin"
 
 RUN mkdir -p /bin/ /config/ /data/ && \
