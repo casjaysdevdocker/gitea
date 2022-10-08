@@ -1,6 +1,7 @@
-FROM gitea/gitea:latest AS build
+FROM gitea/gitea:latest
 
-ARG LICENSE=WTFPL \
+ARG alpine_version=edge \
+  LICENSE=WTFPL \
   IMAGE_NAME=gitea \
   TIMEZONE=America/New_York \
   PORT="3000 22"
@@ -8,20 +9,20 @@ ARG LICENSE=WTFPL \
 ENV SHELL=/bin/bash \
   TERM=xterm-256color \
   HOSTNAME=${HOSTNAME:-casjaysdev-$IMAGE_NAME} \
-  TZ=$TIMEZONE \
-  PATH="$PATH:/sbin"
+  TZ=$TIMEZONE
 
 RUN mkdir -p /bin/ /config/ /data/ && \
-  rm -Rf /bin/.gitkeep /config/.gitkeep /data/.gitkeep && \
-  apk update -U --no-cache && \
-  apk add --no-cache tini && \
-  bash -c 'type -P tini'
+  rm -Rf /bin/.gitkeep /config/.gitkeep /data/.gitkeep /etc/apk/repositories && \
+  echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/main" >> /etc/apk/repositories && \
+  echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/community" >> /etc/apk/repositories && \
+  echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/testing" >> /etc/apk/repositories && \
+  apk update -U --no-cache
 
 COPY ./bin/. /usr/local/bin/
 COPY ./config/. /config/
 COPY ./data/. /data/
 
-FROM scratch
+#FROM scratch
 ARG BUILD_DATE="$(date +'%Y-%m-%d %H:%M')"
 
 LABEL org.label-schema.name="gitea" \
@@ -55,9 +56,12 @@ VOLUME ["/root","/config","/data"]
 
 EXPOSE $PORT
 
-COPY --from=build /. /
+ENTRYPOINT ["/usr/bin/entrypoint"]
+CMD ["/bin/s6-svscan", "/etc/s6"]
 
-ENTRYPOINT [ "tini", "--" ]
-HEALTHCHECK --interval=15s --timeout=3s CMD [ "/usr/local/bin/entrypoint-gitea.sh", "healthcheck" ]
-CMD [ "/usr/local/bin/entrypoint-gitea.sh" ]
+#COPY --from=build /. /
+
+#ENTRYPOINT [ "/sbin/tini", "--" ]
+#HEALTHCHECK --interval=15s --timeout=3s CMD [ "/usr/local/bin/entrypoint-gitea.sh", "healthcheck" ]
+#CMD [ "/usr/local/bin/entrypoint-gitea.sh" ]
 
