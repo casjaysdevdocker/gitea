@@ -23,7 +23,7 @@ COPY ./config/. /config/
 COPY ./data/. /data/
 
 #FROM scratch
-ARG BUILD_DATE="$(date +'%Y-%m-%d %H:%M')"
+ARG BUILD_DATE="20221008"
 
 LABEL org.label-schema.name="gitea" \
   org.label-schema.description="Containerized version of gitea" \
