@@ -14,13 +14,13 @@ RUN mkdir -p /bin/ /config/ /data/ && \
   rm -Rf /bin/.gitkeep /config/.gitkeep /data/.gitkeep && \
   apk update -U --no-cache && \
   apk add --no-cache tini && \
-  type -P tini
+  bash -c 'type -P tini'
 
 COPY ./bin/. /usr/local/bin/
 COPY ./config/. /config/
 COPY ./data/. /data/
 
-#FROM scratch
+FROM scratch
 ARG BUILD_DATE="$(date +'%Y-%m-%d %H:%M')"
 
 LABEL org.label-schema.name="gitea" \
