@@ -39,7 +39,6 @@ LABEL org.label-schema.name="gitea" \
   maintainer="CasjaysDev <docker-admin@casjaysdev.com>"
 
 ENV SHELL="/bin/bash" \
-  USER=git \
   TERM="xterm-256color" \
   HOSTNAME="casjaysdev-gitea" \
   TZ="${TZ:-America/New_York}" \
@@ -55,6 +54,9 @@ ENV SHELL="/bin/bash" \
 VOLUME [ "/config", "/data" ]
 
 EXPOSE $PORT
+
+ENV USER git
+ENV GITEA_CUSTOM /data/gitea
 
 ENTRYPOINT ["/usr/bin/entrypoint"]
 CMD ["/bin/s6-svscan", "/etc/s6"]
