@@ -43,6 +43,8 @@ ENV SHELL="/bin/bash" \
   TERM="xterm-256color" \
   HOSTNAME="casjaysdev-gitea" \
   TZ="${TZ:-America/New_York}" \
+  USER="git" \
+  GITEA_CUSTOM="/data/gitea" \
   GITEA__mailer__ENABLED="" \
   GITEA__mailer__FROM="" \
   GITEA__mailer__MAILER_TYPE="" \
@@ -50,8 +52,6 @@ ENV SHELL="/bin/bash" \
   GITEA__mailer__IS_TLS_ENABLED="" \
   GITEA__mailer__USER="" \
   GITEA__mailer__PASSWD=""
-
-WORKDIR /root
 
 VOLUME [ "/config", "/data" ]
 
