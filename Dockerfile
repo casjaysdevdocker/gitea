@@ -52,17 +52,16 @@ ENV SHELL="/bin/bash" \
 
 WORKDIR /root
 
-VOLUME ["/root","/config","/data"]
+VOLUME [ "/config", "/data" ]
 
 EXPOSE $PORT
 
 COPY --from=build /. /
 
 #ENTRYPOINT [ "/sbin/tini", "--" ]
-#HEALTHCHECK --interval=15s --timeout=3s CMD [ "/usr/local/bin/entrypoint-gitea.sh", "healthcheck" ]
+HEALTHCHECK --interval=15s --timeout=3s CMD [ "/usr/local/bin/entrypoint-gitea.sh", "healthcheck" ]
 #CMD [ "/usr/local/bin/entrypoint-gitea.sh" ]
 
 ENTRYPOINT ["/usr/bin/entrypoint"]
 CMD ["/bin/s6-svscan", "/etc/s6"]
-HEALTHCHECK --interval=15s --timeout=3s CMD curl -q -LSsf "http://localhost:3000/" || exit 1
 

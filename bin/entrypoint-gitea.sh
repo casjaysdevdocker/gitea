@@ -116,7 +116,7 @@ healthcheck) # Docker healthcheck
 
 *) # Execute primary command
   if [ $# -eq 0 ]; then
-    entrypoint
+    start-gitea-server
   else
     __exec_bash "/bin/bash"
   fi
