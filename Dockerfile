@@ -39,7 +39,7 @@ LABEL org.label-schema.name="gitea" \
   maintainer="CasjaysDev <docker-admin@casjaysdev.com>"
 
 ENV SHELL="/bin/bash" \
-  USER git \
+  USER=git \
   TERM="xterm-256color" \
   HOSTNAME="casjaysdev-gitea" \
   TZ="${TZ:-America/New_York}" \
