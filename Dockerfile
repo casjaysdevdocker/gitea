@@ -1,4 +1,4 @@
-FROM gitea/gitea:latest AS build
+FROM gitea/gitea:latest
 
 ARG alpine_version=edge \
   LICENSE=WTFPL \
@@ -56,9 +56,7 @@ VOLUME [ "/config", "/data" ]
 
 EXPOSE $PORT
 
-COPY --from=build /. /
-
-ENTRYPOINT [ "/sbin/tini", "--" ]
+#ENTRYPOINT [ "/sbin/tini", "--" ]
 HEALTHCHECK --interval=15s --timeout=3s CMD [ "/usr/local/bin/entrypoint-gitea.sh", "healthcheck" ]
-CMD [ "/usr/local/bin/entrypoint-gitea.sh" ]
+#CMD [ "/usr/local/bin/entrypoint-gitea.sh" ]
 
