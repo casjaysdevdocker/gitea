@@ -39,10 +39,10 @@ LABEL org.label-schema.name="gitea" \
   maintainer="CasjaysDev <docker-admin@casjaysdev.com>"
 
 ENV SHELL="/bin/bash" \
+  USER git \
   TERM="xterm-256color" \
   HOSTNAME="casjaysdev-gitea" \
   TZ="${TZ:-America/New_York}" \
-  USER="git" \
   GITEA_CUSTOM="/data/gitea" \
   GITEA__mailer__ENABLED="" \
   GITEA__mailer__FROM="" \
@@ -58,8 +58,5 @@ EXPOSE $PORT
 
 ENTRYPOINT ["/usr/bin/entrypoint"]
 CMD ["/bin/s6-svscan", "/etc/s6"]
-
-#ENTRYPOINT [ "/sbin/tini", "--" ]
 HEALTHCHECK --interval=15s --timeout=3s CMD [ "/usr/local/bin/entrypoint-gitea.sh", "healthcheck" ]
-#CMD [ "/usr/local/bin/entrypoint-gitea.sh" ]
 
