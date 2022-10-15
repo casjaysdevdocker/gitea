@@ -78,17 +78,6 @@ fi
 [ -n "${DATA_DIR}" ] && { [ -d "${DATA_DIR}" ] && rm -Rf "${DATA_DIR}/.gitkeep" || mkdir -p "/data/"; }
 [ -n "${BIN_DIR}" ] && { [ -d "${BIN_DIR}" ] && rm -Rf "${BIN_DIR}/.gitkeep" || mkdir -p "/bin/"; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Copy config files to /etc
-if [ -n "${CONFIG_DIR}" ] && [ "${CONFIG_COPY}" = "true" ]; then
-  for config in ${CONFIG_DIR}; do
-    if [ -d "/config/$config" ]; then
-      [ -d "/etc/$config" ] || mkdir -p "/etc/$config"
-      cp -Rf "/config/$config/." "/etc/$config/"
-    elif [ -f "/config/$config" ]; then
-      cp -Rf "/config/$config" "/etc/$config"
-    fi
-  done
-fi
 [ -f "/etc/.env.sh" ] && rm -Rf "/etc/.env.sh"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional commands

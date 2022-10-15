@@ -17,13 +17,12 @@ RUN mkdir -p /bin/ /config/ /data/ && \
   echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/community" >> /etc/apk/repositories && \
   echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/testing" >> /etc/apk/repositories && \
   apk update -U --no-cache && apk add --no-cache \
-  tini
+  bash
 
 COPY ./bin/. /usr/local/bin/
 COPY ./config/. /config/
 COPY ./data/. /data/
 
-FROM scratch
 ARG BUILD_DATE="20221008"
 
 LABEL org.label-schema.name="gitea" \
