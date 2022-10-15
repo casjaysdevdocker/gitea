@@ -16,7 +16,8 @@ RUN mkdir -p /bin/ /config/ /data/ && \
   echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/main" >> /etc/apk/repositories && \
   echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/community" >> /etc/apk/repositories && \
   echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/testing" >> /etc/apk/repositories && \
-  apk update -U --no-cache
+  apk update -U --no-cachea && apk add --no-cache \
+  tini
 
 COPY ./bin/. /usr/local/bin/
 COPY ./config/. /config/
@@ -58,10 +59,7 @@ EXPOSE $PORT
 
 COPY --from=build /. /
 
-#ENTRYPOINT [ "/sbin/tini", "--" ]
+ENTRYPOINT [ "/sbin/tini", "--" ]
 HEALTHCHECK --interval=15s --timeout=3s CMD [ "/usr/local/bin/entrypoint-gitea.sh", "healthcheck" ]
-#CMD [ "/usr/local/bin/entrypoint-gitea.sh" ]
-
-ENTRYPOINT ["/usr/bin/entrypoint"]
-CMD ["/bin/s6-svscan", "/etc/s6"]
+CMD [ "/usr/local/bin/entrypoint-gitea.sh" ]
 
