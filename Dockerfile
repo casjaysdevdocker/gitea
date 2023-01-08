@@ -1,64 +1,97 @@
-FROM gitea/gitea:latest
+FROM casjaysdevdocker/alpine:latest AS build
 
-ARG alpine_version=edge \
-  LICENSE=WTFPL \
-  IMAGE_NAME=gitea \
-  TIMEZONE=America/New_York \
-  PORT="3000 22"
+ARG ALPINE_VERSION="v3.16"
 
-ENV SHELL=/bin/bash \
-  TERM=xterm-256color \
-  HOSTNAME=${HOSTNAME:-casjaysdev-$IMAGE_NAME} \
-  TZ=$TIMEZONE
+ARG DEFAULT_DATA_DIR="/usr/local/share/template-files/data" \
+  DEFAULT_CONF_DIR="/usr/local/share/template-files/config" \
+  DEFAULT_TEMPLATE_DIR="/usr/local/share/template-files/defaults"
 
-RUN mkdir -p /bin/ /config/ /data/ && \
-  rm -Rf /bin/.gitkeep /config/.gitkeep /data/.gitkeep /etc/apk/repositories && \
-  echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/main" >> /etc/apk/repositories && \
-  echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/community" >> /etc/apk/repositories && \
-  echo "http://dl-cdn.alpinelinux.org/alpine/$alpine_version/testing" >> /etc/apk/repositories && \
-  apk update -U --no-cache && apk add --no-cache \
-  bash
+ARG PACK_LIST="bash"
 
-COPY ./bin/. /usr/local/bin/
-COPY ./config/. /config/
-COPY ./data/. /data/
-
-ARG BUILD_DATE="20221008"
-
-LABEL org.label-schema.name="gitea" \
-  org.label-schema.description="Containerized version of gitea" \
-  org.label-schema.url="https://hub.docker.com/r/casjaysdevdocker/gitea" \
-  org.label-schema.vcs-url="https://github.com/casjaysdevdocker/gitea" \
-  org.label-schema.build-date=$BUILD_DATE \
-  org.label-schema.version=$BUILD_DATE \
-  org.label-schema.vcs-ref=$BUILD_DATE \
-  org.label-schema.license="$LICENSE" \
-  org.label-schema.vcs-type="Git" \
-  org.label-schema.schema-version="latest" \
-  org.label-schema.vendor="CasjaysDev" \
-  maintainer="CasjaysDev <docker-admin@casjaysdev.com>"
-
-ENV SHELL="/bin/bash" \
+ENV LANG=en_US.UTF-8 \
+  ENV=ENV=~/.bashrc \
+  TZ="America/New_York" \
+  SHELL="/bin/sh" \
   TERM="xterm-256color" \
-  HOSTNAME="casjaysdev-gitea" \
+  TIMEZONE="${TZ:-$TIMEZONE}" \
+  HOSTNAME="casjaysdev-gitea"
+
+COPY ./rootfs/. /
+
+RUN set -ex; \
+  rm -Rf "/etc/apk/repositories"; \
+  mkdir -p "${DEFAULT_DATA_DIR}" "${DEFAULT_CONF_DIR}" "${DEFAULT_TEMPLATE_DIR}"; \
+  echo "http://dl-cdn.alpinelinux.org/alpine/${ALPINE_VERSION}/main" >>"/etc/apk/repositories"; \
+  echo "http://dl-cdn.alpinelinux.org/alpine/${ALPINE_VERSION}/community" >>"/etc/apk/repositories"; \
+  if [ "${ALPINE_VERSION}" = "edge" ]; then echo "http://dl-cdn.alpinelinux.org/alpine/${ALPINE_VERSION}/testing" >>"/etc/apk/repositories" ; fi ; \
+  apk update --update-cache && apk add --no-cache ${PACK_LIST} && \
+  echo
+
+RUN echo 'Running cleanup' ; \
+  rm -Rf /usr/share/doc/* /usr/share/info/* /tmp/* /var/tmp/* ; \
+  rm -Rf /usr/local/bin/.gitkeep /usr/local/bin/.gitkeep /config /data /var/cache/apk/* ; \
+  rm -rf /lib/systemd/system/multi-user.target.wants/* ; \
+  rm -rf /etc/systemd/system/*.wants/* ; \
+  rm -rf /lib/systemd/system/local-fs.target.wants/* ; \
+  rm -rf /lib/systemd/system/sockets.target.wants/*udev* ; \
+  rm -rf /lib/systemd/system/sockets.target.wants/*initctl* ; \
+  rm -rf /lib/systemd/system/sysinit.target.wants/systemd-tmpfiles-setup* ; \
+  rm -rf /lib/systemd/system/systemd-update-utmp* ; \
+  if [ -d "/lib/systemd/system/sysinit.target.wants" ]; then cd "/lib/systemd/system/sysinit.target.wants" && rm $(ls | grep -v systemd-tmpfiles-setup) ; fi
+
+FROM scratch
+
+ARG \
+  SERVICE_PORT="80" \
+  EXPOSE_PORTS="80" \
+  PHP_SERVER="gitea" \
+  NODE_VERSION="system" \
+  NODE_MANAGER="system" \
+  BUILD_VERSION="latest" \
+  LICENSE="MIT" \
+  IMAGE_NAME="gitea" \
+  BUILD_DATE="Sun Nov 13 12:16:16 PM EST 2022" \
+  TIMEZONE="America/New_York"
+
+LABEL maintainer="CasjaysDev <docker-admin@casjaysdev.com>" \
+  org.opencontainers.image.vendor="CasjaysDev" \
+  org.opencontainers.image.authors="CasjaysDev" \
+  org.opencontainers.image.vcs-type="Git" \
+  org.opencontainers.image.name="${IMAGE_NAME}" \
+  org.opencontainers.image.base.name="${IMAGE_NAME}" \
+  org.opencontainers.image.license="${LICENSE}" \
+  org.opencontainers.image.vcs-ref="${BUILD_VERSION}" \
+  org.opencontainers.image.build-date="${BUILD_DATE}" \
+  org.opencontainers.image.version="${BUILD_VERSION}" \
+  org.opencontainers.image.schema-version="${BUILD_VERSION}" \
+  org.opencontainers.image.url="https://hub.docker.com/r/casjaysdevdocker/${IMAGE_NAME}" \
+  org.opencontainers.image.vcs-url="https://github.com/casjaysdevdocker/${IMAGE_NAME}" \
+  org.opencontainers.image.url.source="https://github.com/casjaysdevdocker/${IMAGE_NAME}" \
+  org.opencontainers.image.documentation="https://hub.docker.com/r/casjaysdevdocker/${IMAGE_NAME}" \
+  org.opencontainers.image.description="Containerized version of ${IMAGE_NAME}" \
+  com.github.containers.toolbox="false"
+
+ENV LANG=en_US.UTF-8 \
+  ENV=~/.bashrc \
+  SHELL="/bin/bash" \
+  PORT="${SERVICE_PORT}" \
+  TERM="xterm-256color" \
+  PHP_SERVER="${PHP_SERVER}" \
+  CONTAINER_NAME="${IMAGE_NAME}" \
   TZ="${TZ:-America/New_York}" \
-  GITEA_CUSTOM="/data/gitea" \
-  GITEA__mailer__ENABLED="" \
-  GITEA__mailer__FROM="" \
-  GITEA__mailer__MAILER_TYPE="" \
-  GITEA__mailer__HOST="" \
-  GITEA__mailer__IS_TLS_ENABLED="" \
-  GITEA__mailer__USER="" \
-  GITEA__mailer__PASSWD=""
+  TIMEZONE="${TZ:-$TIMEZONE}" \
+  HOSTNAME="casjaysdev-${IMAGE_NAME}"
 
-VOLUME [ "/config", "/data" ]
+COPY --from=build /. /
 
-EXPOSE $PORT
+USER root
+WORKDIR /root
 
-ENV USER git
-ENV GITEA_CUSTOM /data/gitea
+VOLUME [ "/config","/data" ]
 
-ENTRYPOINT ["/usr/bin/entrypoint"]
-CMD ["/bin/s6-svscan", "/etc/s6"]
-HEALTHCHECK --interval=15s --timeout=3s CMD [ "/usr/local/bin/entrypoint-gitea.sh", "healthcheck" ]
+EXPOSE $EXPOSE_PORTS
+
+#CMD [ "" ]
+ENTRYPOINT [ "tini", "-p", "SIGTERM", "--", "/usr/local/bin/entrypoint.sh" ]
+HEALTHCHECK --start-period=1m --interval=2m --timeout=3s CMD [ "/usr/local/bin/entrypoint.sh", "healthcheck" ]
 

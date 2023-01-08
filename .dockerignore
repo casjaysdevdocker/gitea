@@ -2,3 +2,8 @@
 .gitkeep
 .gitignore
 .node_modules/**
+node_modules/**
+**/.gitkeep
+**/.gitignore
+**/node_modules/**
+**/.node_modules/**
