@@ -1,0 +1,37 @@
+#!/usr/bin/env sh
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+##@Version           :  202408041804-git
+# @@Author           :  CasjaysDev
+# @@Contact          :  CasjaysDev <docker-admin@casjaysdev.pro>
+# @@License          :  MIT
+# @@ReadME           :
+# @@Copyright        :  Copyright 2023 CasjaysDev
+# @@Created          :  Mon Aug 28 06:48:42 PM EDT 2023
+# @@File             :  packages
+# @@Description      :  script to run packages
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# shellcheck shell=sh
+# shellcheck disable=SC2016
+# shellcheck disable=SC2031
+# shellcheck disable=SC2120
+# shellcheck disable=SC2155
+# shellcheck disable=SC2199
+# shellcheck disable=SC2317
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set bash options
+[ "$DEBUGGER" = "on" ] && echo "Enabling debugging" && set -ex$DEBUGGER_OPTIONS || set -e
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set env variables
+exitCode=0
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Main script
+[ -d "/etc/nginx" ] && rm -Rf "/etc/nginx"/*
+[ -d "/etc/gitea" ] && rm -Rf "/etc/gitea"/*
+[ -d "/etc/docker" ] && rm -Rf "/etc/docker"/*
+[ -d "/etc/act_runner" ] && rm -Rf "/etc/act_runner"/*
+[ -d "/tmp/etc" ] && cp -Rf "/tmp/etc/." "/etc/"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Set the exit code
+exitCode=0
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+exit $exitCode
