@@ -266,14 +266,14 @@ EOF
           echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
           sleep 120
         else
+          [ -f "$runner" ] && . "$runner"
           if [ ! -f "$RUNNER_HOME/runners" ]; then
             echo "RUNNER_AUTH_TOKEN has been set: trying to register $RUNNER_NAME"
-            [ -f "$runner" ] && . "$runner"
             echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
             mkdir -p "$RUNNER_HOME"
             cp -Rf "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
-            __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
-            __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
+            __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml"
+            __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"
             act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive
             if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
               cp -Rf "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
