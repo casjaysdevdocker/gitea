@@ -57,6 +57,6 @@ else
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set the exit code
-[ $exitCode -eq 0 ] && [ -x "$ACT_BIN_FILE" ] && [ -x "$ACT_BIN_FILE" ] && echo "Gitea has been setup" || exitCode=2
+[ $exitCode -eq 0 ] && [ -x "$ACT_BIN_FILE" ] && [ -x "$ACT_BIN_FILE" ] || echo "Failed to install gitea or act_runner" >&2
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 exit $exitCode
