@@ -252,12 +252,27 @@ __update_conf_files() {
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # replace variables
-  # __replace "" "" "$CONF_DIR/gitea.conf"
+  __replace "REPLACE_SSH_CONF_DIR" "/config/ssh" "/config/ssh/sshd_config"
+  __replace "REPLACE_SSH_DATA_DIR" "$DATA_DIR/ssh" "/config/ssh/sshd_config"
   # replace variables recursively
   #  __find_replace "" "" "$CONF_DIR"
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # define actions
+  if [ ! -f /config/ssh/ssh_host_ed25519_key ]; then
+    echo "Generating /config/ssh/ssh_host_ed25519_key..."
+    ssh-keygen -t ed25519 -f /config/ssh/ssh_host_ed25519_key -N "" >/dev/null
+  fi
+  if [ ! -f /config/ssh/ssh_host_rsa_key ]; then
+    echo "Generating /config/ssh/ssh_host_rsa_key..."
+    ssh-keygen -t rsa -b 3072 -f /config/ssh/ssh_host_rsa_key -N "" >/dev/null
+  fi
+  if [ ! -f /config/ssh/ssh_host_ecdsa_key ]; then
+    echo "Generating /config/ssh/ssh_host_ecdsa_key..."
+    ssh-keygen -t ecdsa -b 256 -f /config/ssh/ssh_host_ecdsa_key -N "" >/dev/null
+  fi
+  chmod 0700 "$DATA_DIR/ssh" /config/ssh
+  chmod 0600 "$DATA_DIR/ssh"/* /config/ssh/*
 
   # exit function
   return $exitCode
