@@ -30,8 +30,8 @@ aarch64) ARCH="arm64" && unset GET_ARCH ;;
 *) echo "$GET_ARCH is not supported by this script" >&2 && exit 1 ;;
 esac
 exitCode=0
-GITEA_BIN_FILE="/usr/local/bin/gitea"
 GITEA_VERSION="${GITEA_VERSION:-latest}"
+GITEA_BIN_FILE="/usr/local/bin/gitea"
 ACT_BIN_FILE="/usr/local/bin/act_runner"
 ACT_VERSIONS="$(curl -q -LSsf -X 'GET' 'https://gitea.com/api/v1/repos/gitea/act_runner/releases' -H 'accept: application/json' | jq -r '.[].tag_name' | sort -Vr | head -n1)"
 ACT_URL="$(curl -q -LSsf -X 'GET' "https://gitea.com/api/v1/repos/gitea/act_runner/releases/tags/$ACT_VERSIONS" -H 'accept: application/json' | jq -rc '.assets|.[]|.browser_download_url' | grep "linux.*$ARCH$")"
@@ -43,10 +43,10 @@ fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Main script
 echo "Dowloading from $API_URL"
-curl -q -LSsf "$API_URL" -o "$GITEA_BIN_FILE" && chmod +x "$GITEA_BIN_FILE"
+curl -q -LSsf "$API_URL" -o "$GITEA_BIN_FILE" && chmod +x "$GITEA_BIN_FILE" || echo "Failed to download gitea" >&2
 echo "Downloading act_runner from $ACT_URL"
-curl -q -LSsf "$ACT_URL" -o "$ACT_BIN_FILE" && chmod +x "$ACT_BIN_FILE"
-if [ -x "$GITEA_BIN_FILE" ]; then
+curl -q -LSsf "$ACT_URL" -o "$ACT_BIN_FILE" && chmod +x "$ACT_BIN_FILE" || echo "Failed to download act_runner" >&2
+if [ -x "$GITEA_BIN_FILE" ] && [ -x "$ACT_BIN_FILE" ]; then
   echo "gitea has been installed to: $GITEA_BIN_FILE"
   if [ -d "/etc/sudoers.d" ]; then
     echo "gitea       ALL=(ALL)      NOPASSWD: ALL" >"/etc/sudoers.d/gitea"
