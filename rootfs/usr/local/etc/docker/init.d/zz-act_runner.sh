@@ -226,6 +226,13 @@ RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_HOSTNAME="${INSTANCE_HOSTNAME:-http://127.0.0.1:8000}"
 EOF
+      cat <<EOF >"$CONF_DIR/reg/runner.reg"
+# Settings for the default gitea runner
+RUNNER_NAME="runner"
+RUNNER_LABELS="$RUNNER_LABELS"
+RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
+RUNNER_HOSTNAME="${INSTANCE_HOSTNAME:-http://127.0.0.1:8000}"
+EOF
     fi
     if [ ! -f "$CONF_DIR/runners" ]; then
       for runner in "$CONF_DIR/reg"/*.reg; do

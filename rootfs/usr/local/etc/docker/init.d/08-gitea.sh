@@ -93,7 +93,7 @@ LOG_DIR="/data/logs/gitea" # set log directory
 WORK_DIR=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # port which service is listening on
-SERVICE_PORT="5000"
+SERVICE_PORT="8000"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User to use to launch service - IE: postgres
 RUNAS_USER="gitea" # normally root
