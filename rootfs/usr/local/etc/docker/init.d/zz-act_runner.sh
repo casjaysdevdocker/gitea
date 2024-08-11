@@ -372,7 +372,7 @@ __post_execute() {
           if [ -f "$$multi/$name.yaml" ] && [ -f "$multi/runners" ]; then
             act_runner daemon --config $multi/$name.yaml &
             local pid=$!
-            sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && is_running="yes"
+            sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$pid$" && is_running="yes"
             if [ "$is_running" = "yes" ]; then
               echo "$pid" >"$RUN_DIR/act_runner.$name.pid"
             fi
