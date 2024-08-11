@@ -23,17 +23,17 @@ set -e -o pipefail
 [ "$DEBUGGER" = "on" ] && echo "Enabling debugging" && set -x$DEBUGGER_OPTIONS
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set env variables
-exitCode=0
 GET_ARCH="$(uname -m | tr '[:upper]' '[:lower]')"
+case "$GET_ARCH" in
+x86_64) ARCH="amd64" && unset GET_ARCH ;;
+aarch64) ARCH="arm64" && unset GET_ARCH ;;
+*) echo "$GET_ARCH is not supported by this script" >&2 && exit 1 ;;
+esac
+exitCode=0
 GITEA_BIN_FILE="/usr/local/bin/gitea"
 GITEA_VERSION="${GITEA_VERSION:-latest}"
 ACT_BIN_FILE="/usr/local/bin/act_runner"
 ACT_VERSIONS="$(curl -q -LSsf -X 'GET' 'https://gitea.com/api/v1/repos/gitea/act_runner/releases' -H 'accept: application/json' | jq -r '.[].tag_name' | sort -Vr | head -n1)"
-case "$GET_ARCH" in
-x86_64) ARCH="amd64" ;;
-aarch64) ARCH="arm64" ;;
-*) echo "$ARCH is not supported by this script" && exit 1 ;;
-esac
 ACT_URL="$(curl -q -LSsf -X 'GET' "https://gitea.com/api/v1/repos/gitea/act_runner/releases/tags/$ACT_VERSIONS" -H 'accept: application/json' | jq -rc '.assets|.[]|.browser_download_url' | grep "linux.*$ARCH$")"
 if [ "$GITEA_VERSION" = "latest" ] || [ "$GITEA_VERSION" = "current" ]; then
   API_URL="$(curl -s https://api.github.com/repos/go-gitea/gitea/releases/latest | jq -r '.assets[] | select(.name|match("linux.*'${ARCH}'$")) | .browser_download_url')"
