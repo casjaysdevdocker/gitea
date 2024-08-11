@@ -266,6 +266,7 @@ EOF
           echo "RUNNER_AUTH_TOKEN has been set: trying to register $RUNNER_NAME"
           if [ ! -f "$RUNNER_HOME/runners" ]; then
             cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/$RUNNER_NAME.yaml"
+            __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             act_runner register --config "$RUNNER_HOME/$RUNNER_NAME.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "http://$CONTAINER_IP4_ADDRESS:8000" --token "$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
             exitStatus=$?

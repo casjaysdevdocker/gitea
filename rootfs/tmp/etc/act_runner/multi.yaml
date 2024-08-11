@@ -5,7 +5,7 @@ log:
 
 host:
   # The parent directory of a job's working directory.
-  workdir_parent: 'REPLACE_RUNNER_HOME'
+  workdir_parent: 'REPLACE_RUNNER_TEMP'
 
 runner:
   # Where to store the registration result.
@@ -58,7 +58,7 @@ container:
   # And other options to be used when the container is started (eg, --add-host=my.gitea.url:host-gateway).
   options:
   # The parent directory of a job's working directory.
-  workdir_parent: 'REPLACE_RUNNER_HOME/volumes'
+  workdir_parent: 'REPLACE_RUNNER_TEMP/volumes'
   # Volumes (including bind mounts) can be mounted to containers. Glob syntax is supported, see https://github.com/gobwas/glob
   valid_volumes:
     - '**'
