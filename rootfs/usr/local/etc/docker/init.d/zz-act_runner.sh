@@ -248,7 +248,9 @@ EOF
     fi
     for runner in "$CONF_DIR/reg"/*.reg; do
       exitStatus=0
+      unset RUNNER_HOME RUNNER_NAME
       RUNNER_NAME="$(basename "${runner//.reg/}")"
+      RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
       while :; do
         [ -f "$runner" ] && . "$runner"
         [ -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid" ] && break
@@ -266,7 +268,6 @@ EOF
             continue
           else
             [ -f "$runner" ] && . "$runner"
-            RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
             mkdir -p "$RUNNER_HOME"
             cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
