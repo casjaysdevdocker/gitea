@@ -252,8 +252,8 @@ __update_conf_files() {
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # replace variables
-  __replace "REPLACE_SSH_CONF_DIR" "/config/ssh" "/config/ssh/sshd_config"
-  __replace "REPLACE_SSH_DATA_DIR" "$DATA_DIR/ssh" "/config/ssh/sshd_config"
+  __replace "REPLACE_SSH_CONF_DIR" "/config/ssh" "/etc/ssh/sshd_config"
+  __replace "REPLACE_SSH_DATA_DIR" "$DATA_DIR/ssh" "/etc/ssh/sshd_config"
   # replace variables recursively
   #  __find_replace "" "" "$CONF_DIR"
 
