@@ -229,7 +229,7 @@ EOF
 # Settings for the default gitea runner
 RUNNER_NAME="runner-1"
 RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
-RUNNER_HOSTNAME="https://${HOSTNAME:-127.0.0.1:8000}"
+RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
 RUNNER_REGISTER_URL="http://127.0.0.1:8000"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_LABELS="$RUNNER_LABELS"
@@ -239,7 +239,7 @@ EOF
 # Settings for the default local runner
 RUNNER_NAME="runner-2"
 RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
-RUNNER_HOSTNAME="https://${HOSTNAME:-127.0.0.1:8000}"
+RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
 RUNNER_REGISTER_URL="http://127.0.0.1:8000"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_LABELS="$RUNNER_LABELS"
@@ -251,7 +251,7 @@ EOF
       RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
       RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
       RUNNER_HOSTNAME="https://${RUNNER_HOSTNAME:-$HOSTNAME}"
-      RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:8000}"
+      RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-127.0.0.1:8000}"
       RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
       RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
       while :; do
@@ -274,7 +274,7 @@ EOF
             cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
-            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNER_LOCAL_ADDRESS" http://--token "$RUNNER_AUTH_TOKEN" --no-interactive
+            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive
             if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
               cp -Rf "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
               chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
@@ -282,7 +282,6 @@ EOF
               exitStatus=${exitStatus:-0}
               break
             else
-              [ -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid" ] && rm -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid"
               exitStatus=$((exitStatus++))
               sleep 20
             fi
@@ -385,13 +384,14 @@ __post_execute() {
           name="$(basename "$multi")"
           if [ -f "$multi/daemon.yaml" ] && [ -f "$multi/runners" ]; then
             act_runner daemon --config $multi/daemon.yaml &
-            local pid=$!
+            pid=$!
             sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$pid$" && is_running="yes"
             if [ "$is_running" = "yes" ]; then
               echo "$pid" >"$RUN_DIR/act_runner.$name.pid"
               echo "$name has been started with pid: $pid" | tee -a -p "$LOG_DIR/init.txt"
             else
               echo "$name has failed to start" >/dev/stderr
+              [ -f "$RUN_DIR/act_runner.$name.pid" ] && rm -f "$RUN_DIR/act_runner.$name.pid"
             fi
           fi
         fi
