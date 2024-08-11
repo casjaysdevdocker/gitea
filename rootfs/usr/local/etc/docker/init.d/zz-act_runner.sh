@@ -268,16 +268,18 @@ EOF
             continue
           else
             [ -f "$runner" ] && . "$runner"
+            echo "creating $RUNNER_NAME in $RUNNER_HOME and setting hostname to $RUNNER_HOSTNAME"
             mkdir -p "$RUNNER_HOME"
             cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
-            act_runner register --config "$RUNNER_HOME/$RUNNER_NAME.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "http://$CONTAINER_IP4_ADDRESS:8000" --token "$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
+            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "http://$CONTAINER_IP4_ADDRESS:8000" --token "$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
             if [ $exitStatus -eq 0 ]; then
               exitStatus=0
               cp -Rf "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
               chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
               echo "$!" >"$RUN_DIR/act_runner.$RUNNER_NAME.pid"
+              echo "$RUNNER_NAME has been registered"
               break
             else
               [ -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid" ] && rm -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid"
@@ -386,6 +388,9 @@ __post_execute() {
             sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$pid$" && is_running="yes"
             if [ "$is_running" = "yes" ]; then
               echo "$pid" >"$RUN_DIR/act_runner.$name.pid"
+              echo "$name has been started with pid: $pid" | tee -a -p "$LOG_DIR/init.txt"
+            else
+              echo "$name has failed to start" >/dev/stderr
             fi
           fi
         fi
