@@ -40,7 +40,7 @@ fi
 # Main script
 echo "Dowloading gitea from $GITEA_URL"
 if curl -q -LSsf "$GITEA_URL" -o "/tmp/gitea.$$"; then
-  mv -fv "/tmp/gitea.$$" "$GITEA_BIN_FILE"
+  mv -f "/tmp/gitea.$$" "$GITEA_BIN_FILE"
   echo "gitea has been installed to: $GITEA_BIN_FILE"
   chmod +x "$GITEA_BIN_FILE"
   if [ -d "/etc/sudoers.d" ]; then
@@ -53,7 +53,7 @@ else
 fi
 echo "Downloading act_runner from $ACT_URL"
 if curl -q -LSsf "$ACT_URL" -o "/tmp/act_runner.$$"; then
-  mv -fv "/tmp/act_runner.$$" "$ACT_BIN_FILE"
+  mv -f "/tmp/act_runner.$$" "$ACT_BIN_FILE"
   echo "act_runner has been installed to: $ACT_BIN_FILE"
   chmod +x "$ACT_BIN_FILE"
 else
