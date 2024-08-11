@@ -152,7 +152,7 @@ RUN echo "Custom Applications"; \
   echo ""
 
 RUN echo "Running custom commands"; \
-  if [ -f "/root/docker/setup/05-custom.sh" ];then echo "Running the custom script";/root/docker/setup/05-custom.sh||{ echo "Failed to execute /root/docker/setup/05-custom" && exit 10; };echo "Done running the custom script";fi; \
+  if [ -f "/root/docker/setup/05-custom.sh" ];then echo "Running the custom script";/root/docker/setup/05-custom.sh||{ echo "Failed to execute /root/docker/setup/05-custom.sh" && exit 10; };echo "Done running the custom script";fi; \
   echo ""
 
 RUN echo "Running final commands before cleanup"; \
