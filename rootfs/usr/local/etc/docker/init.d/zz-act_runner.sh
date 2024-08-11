@@ -264,7 +264,9 @@ EOF
           sleep 120
         else
           echo "RUNNER_AUTH_TOKEN has been set: trying to register $RUNNER_NAME"
-          if [ ! -f "$RUNNER_HOME/runners" ]; then
+          if [ -f "$RUNNER_HOME/runners" ]; then
+            continue
+          else
             cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
