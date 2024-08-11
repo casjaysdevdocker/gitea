@@ -208,7 +208,7 @@ __run_pre_execute_checks() {
     if [ ! -f "$CONF_DIR/reg/default.sample" ]; then
       cat <<EOF >"$CONF_DIR/reg/default.sample"
 # Edit this file and execute it
-RUNNER_NAME="sample"
+RUNNER_NAME="gitea"
 RUNNER_HOME="$CONF_DIR"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
@@ -225,24 +225,24 @@ EOF
     fi
     SYS_AUTH_TOKEN="${SYS_AUTH_TOKEN:-$(sudo -u gitea gitea --config /config/gitea/app.ini actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')}"
     if [ ! -f "$CONF_DIR/reg/default.reg" ]; then
-      cat <<EOF >"$CONF_DIR/reg/default.reg"
+      cat <<EOF >"$CONF_DIR/reg/runner-1.reg"
 # Settings for the default gitea runner
-RUNNER_NAME="gitea"
-RUNNER_HOME="$CONF_DIR/multi/$RUNNER_NAME"
+RUNNER_NAME="runner-1"
+RUNNER_HOME="$CONF_DIR/multi/runner-1"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-RUNNER_HOSTNAME="${CONTAINER_IP4_ADDRESS:-http://127.0.0.1:8000}"
-CONTAINER_IP4_ADDRESS="${CONTAINER_IP4_ADDRESS}"
+RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
+CONTAINER_IP4_ADDRESS="${HOSTNAME}"
 
 EOF
-      cat <<EOF >"$CONF_DIR/reg/runner.reg"
+      cat <<EOF >"$CONF_DIR/reg/runner-2.reg"
 # Settings for the default local runner
-RUNNER_NAME="local"
-RUNNER_HOME="$CONF_DIR/multi/$RUNNER_NAME"
+RUNNER_NAME="runner-2"
+RUNNER_HOME="$CONF_DIR/multi/runner-2"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-RUNNER_HOSTNAME="${CONTAINER_IP4_ADDRESS:-http://127.0.0.1:8000}"
-CONTAINER_IP4_ADDRESS="${CONTAINER_IP4_ADDRESS}"
+RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
+CONTAINER_IP4_ADDRESS="${HOSTNAME}"
 
 EOF
     fi
@@ -252,8 +252,6 @@ EOF
       while :; do
         [ -f "$runner" ] && . "$runner"
         [ -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid" ] && break
-        RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
-        mkdir -p "$RUNNER_HOME"
         if [ -z "$RUNNER_AUTH_TOKEN" ]; then
           [ -f "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
           [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
@@ -267,11 +265,13 @@ EOF
           if [ -f "$RUNNER_HOME/runners" ]; then
             continue
           else
-            cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/$RUNNER_NAME.yaml"
+            [ -f "$runner" ] && . "$runner"
+            RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
+            mkdir -p "$RUNNER_HOME"
+            cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             act_runner register --config "$RUNNER_HOME/$RUNNER_NAME.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "http://$CONTAINER_IP4_ADDRESS:8000" --token "$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
-            exitStatus=$?
             if [ $exitStatus -eq 0 ]; then
               exitStatus=0
               cp -Rf "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
@@ -379,8 +379,8 @@ __post_execute() {
         if [ -n "$multi" ] && [ -d "$multi" ]; then
           unset pid is_running name
           name="$(basename "$multi")"
-          if [ -f "$multi/$name.yaml" ] && [ -f "$multi/runners" ]; then
-            act_runner daemon --config $multi/$name.yaml &
+          if [ -f "$multi/daemon.yaml" ] && [ -f "$multi/runners" ]; then
+            act_runner daemon --config $multi/daemon.yaml &
             local pid=$!
             sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$pid$" && is_running="yes"
             if [ "$is_running" = "yes" ]; then
