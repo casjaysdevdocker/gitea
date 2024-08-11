@@ -261,11 +261,12 @@ EOF
             cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             act_runner register --config "$RUNNER_HOME/$RUNNER_NAME.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "http://$CONTAINER_IP4_ADDRESS:8000" --token "$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
-            echo "$!" >"$RUN_DIR/act_runner.$RUNNER_NAME.pid"
+            exitStatus=$?
             if [ $exitStatus -eq 0 ]; then
               exitStatus=0
               cp -Rf "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
               chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
+              echo "$!" >"$RUN_DIR/act_runner.$RUNNER_NAME.pid"
               break
             else
               [ -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid" ] && rm -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid"
@@ -364,9 +365,15 @@ __post_execute() {
     __banner "$postMessageST"
     # commands to execute
     for multi in "$CONF_DIR/multi"/*; do
+      unset pid is_running name
       name="$(basename "$multi")"
       if [ -f "$$multi/$name.yaml" ] && [ -f "$multi/runners" ]; then
-        act_runner daemon --config $multi/$name.yaml
+        act_runner daemon --config $multi/$name.yaml &
+        local pid=$!
+        sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && is_running="yes"
+        if [ "$is_running" = "yes" ]; then
+          echo "$pid" >"$RUN_DIR/act_runner.$name.pid"
+        fi
       fi
     done
 
