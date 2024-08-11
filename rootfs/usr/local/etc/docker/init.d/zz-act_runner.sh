@@ -213,8 +213,8 @@ RUNNER_HOME="$CONF_DIR"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_HOSTNAME="${HOSTNAME}"
-CONTAINER_IP4_ADDRESS="http://\${RUNNER_HOSTNAME}"
-act_runner register --config "\$RUNNER_HOME/daemon.yaml" --labels "\$RUNNER_LABELS" --name "\$RUNNER_NAME" --instance "\$CONTAINER_IP4_ADDRESS" --token "\$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
+RUNNER_REGISTER_URL="http://\${RUNNER_HOSTNAME}"
+act_runner register --config "\$RUNNER_HOME/daemon.yaml" --labels "\$RUNNER_LABELS" --name "\$RUNNER_NAME" --instance "\$RUNNER_REGISTER_URL" --token "\$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
 exit \$exitStatus
 
 EOF
@@ -232,7 +232,7 @@ RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_HOSTNAME="https://${HOSTNAME:-127.0.0.1:8000}"
-RUNER_LOCAL_ADDRESS="http://127.0.0.1:8000"
+RUNNER_REGISTER_URL="http://127.0.0.1:8000"
 
 EOF
       cat <<EOF >"$CONF_DIR/reg/runner-2.reg"
@@ -242,7 +242,7 @@ RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_HOSTNAME="https://${HOSTNAME:-127.0.0.1:8000}"
-RUNER_LOCAL_ADDRESS="http://127.0.0.1:8000"
+RUNNER_REGISTER_URL="http://127.0.0.1:8000"
 
 EOF
     fi
@@ -265,7 +265,7 @@ EOF
           if [ ! -f "$RUNNER_HOME/runners" ]; then
             echo "RUNNER_AUTH_TOKEN has been set: trying to register $RUNNER_NAME"
             [ -f "$runner" ] && . "$runner"
-            echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNER_LOCAL_ADDRESS"
+            echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
             mkdir -p "$RUNNER_HOME"
             cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
