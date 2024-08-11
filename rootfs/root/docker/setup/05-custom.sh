@@ -42,7 +42,7 @@ else
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Main script
-echo "Dowloading from $GITEA_URL"
+echo "Dowloading gitea from $GITEA_URL"
 curl -q -LSsf "$GITEA_URL" -o "$GITEA_BIN_FILE" && GITEA=true || echo "Failed to download gitea" >&2
 echo "Downloading act_runner from $ACT_URL"
 curl -q -LSsf "$ACT_URL" -o "$ACT_BIN_FILE" && ACT=true || echo "Failed to download act_runner" >&2
