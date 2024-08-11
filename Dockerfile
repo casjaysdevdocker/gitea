@@ -201,7 +201,6 @@ ARG PHP_VERSION
 ARG PHP_SERVER
 ARG LICENSE="WTFPL"
 ARG ENV_PORTS=""
-ARG GIT_VERSION="$(git -C . show-ref --head --dereference 2>/dev/null|grep ' HEAD' |awk -F' ' '{print $1}')"
 
 USER ${USER}
 WORKDIR /root
@@ -219,7 +218,7 @@ LABEL org.opencontainers.image.schema-version="${BUILD_VERSION}"
 LABEL org.opencontainers.image.url="https://hub.docker.com/r/casjaysdevdocker/gitea"
 LABEL org.opencontainers.image.url.source="https://hub.docker.com/r/casjaysdevdocker/gitea"
 LABEL org.opencontainers.image.vcs-type="Git"
-LABEL org.opencontainers.image.vcs-ref="${GIT_VERSION}"
+LABEL org.opencontainers.image.vcs-ref="${BUILD_VERSION}"
 LABEL org.opencontainers.image.vcs-url="https://github.com/casjaysdevdocker/gitea"
 LABEL org.opencontainers.image.documentation="https://github.com/casjaysdevdocker/gitea"
 LABEL com.github.containers.toolbox="false"
