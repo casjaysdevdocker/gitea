@@ -66,6 +66,8 @@ ENV HOSTNAME="casjaysdevdocker-gitea"
 USER ${USER}
 WORKDIR /root
 
+COPY ./rootfs/usr/local/bin/. /usr/local/bin/
+
 RUN set -e; \
   echo "Setting up prerequisites"; \
   true
@@ -73,7 +75,6 @@ RUN set -e; \
 ENV SHELL="/bin/bash"
 SHELL [ "/bin/bash", "-c" ]
 
-COPY ./rootfs/usr/local/bin/. /usr/local/bin/
 COPY --from=gosu /usr/local/bin/gosu /usr/local/bin/gosu
 
 RUN echo "Initializing the system"; \
