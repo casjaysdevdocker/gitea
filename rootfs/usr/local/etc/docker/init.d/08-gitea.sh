@@ -172,13 +172,13 @@ export CUSTOM_PATH="$ETC_DIR" WORK_DIR="${GITEA_WORK_DIR:-$DATA_DIR}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
-ADD_APPLICATION_DIRS=""
+ADD_APPLICATION_DIRS="/config/ssh"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 APPLICATION_FILES="$LOG_DIR/$SERVICE_NAME.log"
 APPLICATION_DIRS="$RUN_DIR $ETC_DIR $CONF_DIR $LOG_DIR $TMP_DIR"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional config dirs - will be Copied to /etc/$name
-ADDITIONAL_CONFIG_DIRS=""
+ADDITIONAL_CONFIG_DIRS="/config/ssh"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # define variables that need to be loaded into the service - escape quotes - var=\"value\",other=\"test\"
 CMD_ENV=""
