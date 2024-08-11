@@ -36,18 +36,18 @@ ACT_BIN_FILE="/usr/local/bin/act_runner"
 ACT_VERSIONS="$(curl -q -LSsf 'https://gitea.com/api/v1/repos/gitea/act_runner/releases' -H 'accept: application/json' | jq -r '.[].tag_name' | sort -Vr | head -n1)"
 ACT_URL="$(curl -q -LSsf "https://gitea.com/api/v1/repos/gitea/act_runner/releases/tags/$ACT_VERSIONS" -H 'accept: application/json' | jq -rc '.assets|.[]|.browser_download_url' | grep "linux.*$ARCH$")"
 if [ "$GITEA_VERSION" = "latest" ] || [ "$GITEA_VERSION" = "current" ]; then
-  API_URL="$(curl -s https://api.github.com/repos/go-gitea/gitea/releases/latest | jq -r '.assets[] | select(.name|match("linux.*'${ARCH}'$")) | .browser_download_url')"
+  GITEA_URL="$(curl -s https://api.github.com/repos/go-gitea/gitea/releases/latest | jq -r '.assets[] | select(.name|match("linux.*'${ARCH}'$")) | .browser_download_url')"
 else
-  API_URL="https://github.com/go-gitea/gitea/releases/download/v$GITEA_VERSION/gitea-$GITEA_VERSION-linux-$ARCH"
+  GITEA_URL="https://github.com/go-gitea/gitea/releases/download/v$GITEA_VERSION/gitea-$GITEA_VERSION-linux-$ARCH"
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Main script
-echo "Dowloading from $API_URL"
-curl -q -LSsf "$API_URL" -o "$GITEA_BIN_FILE" && chmod +x "$GITEA_BIN_FILE" || echo "Failed to download gitea" >&2
+echo "Dowloading from $GITEA_URL"
+curl -q -LSsf "$GITEA_URL" -o "$GITEA_BIN_FILE" && GITEA=true || echo "Failed to download gitea" >&2
 echo "Downloading act_runner from $ACT_URL"
-curl -q -LSsf "$ACT_URL" -o "$ACT_BIN_FILE" && chmod +x "$ACT_BIN_FILE" || echo "Failed to download act_runner" >&2
-if [ -x "$GITEA_BIN_FILE" ] && [ -x "$ACT_BIN_FILE" ]; then
-  echo "gitea has been installed to: $GITEA_BIN_FILE"
+curl -q -LSsf "$ACT_URL" -o "$ACT_BIN_FILE" && ACT=true || echo "Failed to download act_runner" >&2
+if [ "$GITEA" = true ] && [ "$ACT" = true ]; then
+  chmod +x "$GITEA_BIN_FILE" "$ACT_BIN_FILE"
   if [ -d "/etc/sudoers.d" ]; then
     echo "gitea       ALL=(ALL)      NOPASSWD: ALL" >"/etc/sudoers.d/gitea"
     echo "docker      ALL=(ALL)      NOPASSWD: ALL" >"/etc/sudoers.d/docker"
@@ -57,6 +57,6 @@ else
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set the exit code
-[ $exitCode -eq 0 ] && [ -x "$ACT_BIN_FILE" ] && [ -x "$ACT_BIN_FILE" ] || echo "Failed to install gitea or act_runner" >&2
+[ $exitCode -eq 0 ] && [ -x "$ACT_BIN_FILE" ] && [ -x "$ACT_BIN_FILE" ] && echo "gitea has been installed to: $GITEA_BIN_FILE" || echo "Failed to install gitea or act_runner" >&2
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 exit $exitCode
