@@ -364,19 +364,22 @@ __post_execute() {
     # show message
     __banner "$postMessageST"
     # commands to execute
-    for multi in "$CONF_DIR/multi"/*; do
-      unset pid is_running name
-      name="$(basename "$multi")"
-      if [ -f "$$multi/$name.yaml" ] && [ -f "$multi/runners" ]; then
-        act_runner daemon --config $multi/$name.yaml &
-        local pid=$!
-        sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && is_running="yes"
-        if [ "$is_running" = "yes" ]; then
-          echo "$pid" >"$RUN_DIR/act_runner.$name.pid"
+    if [ -d "$CONF_DIR/multi" ]; then
+      for multi in "$CONF_DIR/multi"/*; do
+        if [ -n "$multi" ]; then
+          unset pid is_running name
+          name="$(basename "$multi")"
+          if [ -f "$$multi/$name.yaml" ] && [ -f "$multi/runners" ]; then
+            act_runner daemon --config $multi/$name.yaml &
+            local pid=$!
+            sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && is_running="yes"
+            if [ "$is_running" = "yes" ]; then
+              echo "$pid" >"$RUN_DIR/act_runner.$name.pid"
+            fi
+          fi
         fi
-      fi
-    done
-
+      done
+    fi
     act_runner cache-server --config $CONF_DIR/daemon.yaml -s 0.0.0.0 -p $SERVICE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/act_runner_cache.log" &
     execPid=$!
     sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && return 0 || return 2
