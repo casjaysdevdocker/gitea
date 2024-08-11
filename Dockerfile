@@ -2,7 +2,7 @@
 # Docker image for gitea using the alpine template
 ARG IMAGE_NAME="gitea"
 ARG PHP_SERVER="gitea"
-ARG BUILD_DATE="202408101710"
+ARG BUILD_DATE="202408111112"
 ARG LANGUAGE="en_US.UTF-8"
 ARG TIMEZONE="America/New_York"
 ARG WWW_ROOT_DIR="/usr/share/httpd/default"
@@ -53,7 +53,7 @@ ARG PHP_VERSION
 ARG PHP_SERVER
 ARG SHELL_OPTS
 
-ARG PACK_LIST="btrfs-progs e2fsprogs e2fsprogs-extra git ip6tables iptables openssl pigz shadow-uidmap xfsprogs xz zfs docker nginx docker-registry "
+ARG PACK_LIST="btrfs-progs e2fsprogs e2fsprogs-extra git ip6tables iptables openssl pigz shadow-uidmap xfsprogs xz zfs docker docker-registry nginx "
 
 ENV ENV=~/.profile
 ENV SHELL="/bin/sh"
@@ -80,13 +80,14 @@ COPY --from=gosu /usr/local/bin/gosu /usr/local/bin/gosu
 RUN echo "Initializing the system"; \
   $SHELL_OPTS; \
   mkdir -p "${DEFAULT_DATA_DIR}" "${DEFAULT_CONF_DIR}" "${DEFAULT_TEMPLATE_DIR}" "/root/docker/setup" "/etc/profile.d"; \
-  if [ -f "/root/docker/setup/00-init.sh" ];then echo "Running the init script";bash "/root/docker/setup/00-init.sh";echo "Done running the init script";fi; \
+  if [ -f "/root/docker/setup/00-init.sh" ];then echo "Running the init script";/root/docker/setup/00-init.sh||{ echo "Failed to execute /root/docker/setup/00-init.sh" >&2 && exit 10; };echo "Done running the init script";fi; \
   echo ""
 
 RUN echo "Creating and editing system files "; \
   $SHELL_OPTS; \
   [ -f "/root/.profile" ] || touch "/root/.profile"; \
-  if [ -f "/root/docker/setup/01-system.sh" ];then echo "Running the system script";bash "/root/docker/setup/01-system.sh";echo "Done running the system script";fi; \
+  mkdir -p "${DEFAULT_DATA_DIR}" "${DEFAULT_CONF_DIR}" "${DEFAULT_TEMPLATE_DIR}" "/root/docker/setup" "/etc/profile.d"; \
+  if [ -f "/root/docker/setup/01-system.sh" ];then echo "Running the system script";/root/docker/setup/01-system.sh||{ echo "Failed to execute /root/docker/setup/01-system.sh" >&2 && exit 10; };echo "Done running the system script";fi; \
   echo ""
 
 RUN echo "Running pre-package commands"; \
@@ -100,7 +101,7 @@ RUN echo "Setting up and installing packages"; \
 
 RUN echo "Initializing packages before copying files to image"; \
   $SHELL_OPTS; \
-  if [ -f "/root/docker/setup/02-packages.sh" ];then echo "Running the packages script";bash "/root/docker/setup/02-packages.sh";echo "Done running the packages script";fi; \
+  if [ -f "/root/docker/setup/02-packages.sh" ];then echo "Running the packages script";/root/docker/setup/02-packages.sh||{ echo "Failed to execute /root/docker/setup/02-packages.sh" >&2 && exit 10; };echo "Done running the packages script";fi; \
   echo ""
 
 COPY ./rootfs/. /
@@ -112,15 +113,12 @@ RUN echo "Updating system files "; \
   touch "/etc/profile" "/root/.profile"; \
   echo 'hosts: files dns' >"/etc/nsswitch.conf"; \
   [ "$PHP_VERSION" = "system" ] && PHP_VERSION="php" || true; \
-  BASH_CMD="$(command -v bash 2>/dev/null|| true)"; \
   PHP_BIN="$(command -v ${PHP_VERSION} 2>/dev/null || true)"; \
   PHP_FPM="$(ls /usr/*bin/php*fpm* 2>/dev/null || true)"; \
   pip_bin="$(command -v python3 2>/dev/null || command -v python2 2>/dev/null || command -v python 2>/dev/null || true)"; \
   py_version="$(command $pip_bin --version | sed 's|[pP]ython ||g' | awk -F '.' '{print $1$2}' | grep '[0-9]' || true)"; \
   [ "$py_version" -gt "310" ] && pip_opts="--break-system-packages " || pip_opts=""; \
   if [ -n "$pip_bin" ];then $pip_bin -m pip install certbot-dns-rfc2136 certbot-dns-duckdns certbot-dns-cloudflare certbot-nginx $pip_opts || true;fi; \
-  [ -f "$BASH_CMD" ] && { rm -rf "/bin/sh" || true; } && ln -sf "$BASH_CMD" "/bin/sh" || true; \
-  [ -n "$BASH_CMD" ] && sed -i 's|root:x:.*|root:x:0:0:root:/root:'$BASH_CMD'|g' "/etc/passwd" || true; \
   [ -f "/usr/share/zoneinfo/${TZ}" ] && ln -sf "/usr/share/zoneinfo/${TZ}" "/etc/localtime" || true; \
   [ -n "$PHP_BIN" ] && [ -z "$(command -v php 2>/dev/null)" ] && ln -sf "$PHP_BIN" "/usr/bin/php" 2>/dev/null || true; \
   [ -n "$PHP_FPM" ] && [ -z "$(command -v php-fpm 2>/dev/null)" ] && ln -sf "$PHP_FPM" "/usr/bin/php-fpm" 2>/dev/null || true; \
@@ -129,7 +127,7 @@ RUN echo "Updating system files "; \
   if [ -z "$(command -v "apt-get" 2>/dev/null)" ];then grep -s -q 'alias quit' "/root/.bashrc" || printf '# Profile\n\n%s\n%s\n%s\n' '. /etc/profile' '. /root/.profile' "alias quit='exit 0 2>/dev/null'" >>"/root/.bashrc"; fi; \
   if [ "$PHP_VERSION" != "system" ] && [ -e "/etc/php" ] && [ -d "/etc/${PHP_VERSION}" ];then rm -Rf "/etc/php";fi; \
   if [ "$PHP_VERSION" != "system" ] && [ -n "${PHP_VERSION}" ] && [ -d "/etc/${PHP_VERSION}" ];then ln -sf "/etc/${PHP_VERSION}" "/etc/php";fi; \
-  if [ -f "/root/docker/setup/03-files.sh" ];then echo "Running the files script";bash "/root/docker/setup/03-files.sh";echo "Done running the files script";fi; \
+  if [ -f "/root/docker/setup/03-files.sh" ];then echo "Running the files script";/root/docker/setup/03-files.sh||{ echo "Failed to execute /root/docker/setup/03-files.sh" >&2 && exit 10; };echo "Done running the files script";fi; \
   echo ""
 
 RUN echo "Custom Settings"; \
@@ -138,7 +136,7 @@ RUN echo "Custom Settings"; \
 
 RUN echo "Setting up users and scripts "; \
   $SHELL_OPTS; \
-  if [ -f "/root/docker/setup/04-users.sh" ];then echo "Running the users script";bash "/root/docker/setup/04-users.sh";echo "Done running the users script";fi; \
+  if [ -f "/root/docker/setup/04-users.sh" ];then echo "Running the users script";/root/docker/setup/04-users.sh||{ echo "Failed to execute /root/docker/setup/04-users.sh" >&2 && exit 10; };echo "Done running the users script";fi; \
   echo ""
 
 RUN echo "Running the user init commands"; \
@@ -154,12 +152,12 @@ RUN echo "Custom Applications"; \
   echo ""
 
 RUN echo "Running custom commands"; \
-  if [ -f "/root/docker/setup/05-custom.sh" ];then echo "Running the custom script";bash "/root/docker/setup/05-custom.sh";echo "Done running the custom script";fi; \
+  if [ -f "/root/docker/setup/05-custom.sh" ];then echo "Running the custom script";/root/docker/setup/05-custom.sh||{ echo "Failed to execute /root/docker/setup/05-custom" && exit 10; };echo "Done running the custom script";fi; \
   echo ""
 
 RUN echo "Running final commands before cleanup"; \
   $SHELL_OPTS; \
-  if [ -f "/root/docker/setup/06-post.sh" ];then echo "Running the post script";bash "/root/docker/setup/06-post.sh";echo "Done running the post script";fi; \
+  if [ -f "/root/docker/setup/06-post.sh" ];then echo "Running the post script";/root/docker/setup/06-post.sh||{ echo "Failed to execute /root/docker/setup/06-post.sh" >&2 && exit 10; };echo "Done running the post script";fi; \
   echo ""
 
 RUN echo "Deleting unneeded files"; \
@@ -175,7 +173,7 @@ RUN echo "Deleting unneeded files"; \
   rm -rf /lib/systemd/system/sockets.target.wants/*initctl* || true; \
   rm -Rf /usr/share/doc/* /var/tmp/* /var/cache/*/* /root/.cache/* /usr/share/info/* /tmp/* || true; \
   if [ -d "/lib/systemd/system/sysinit.target.wants" ];then cd "/lib/systemd/system/sysinit.target.wants" && rm -f $(ls | grep -v systemd-tmpfiles-setup);fi; \
-  if [ -f "/root/docker/setup/07-cleanup.sh" ];then echo "Running the cleanup script";bash "/root/docker/setup/07-cleanup.sh";echo "Done running the cleanup script";fi; \
+  if [ -f "/root/docker/setup/07-cleanup.sh" ];then echo "Running the cleanup script";/root/docker/setup/07-cleanup.sh||{ echo "Failed to execute /root/docker/setup/07-cleanup.sh" >&2 && exit 10; };echo "Done running the cleanup script";fi; \
   echo ""
 
 RUN echo "Init done"
