@@ -247,7 +247,6 @@ CONTAINER_IP4_ADDRESS="${HOSTNAME}"
 EOF
     fi
     for runner in "$CONF_DIR/reg"/*.reg; do
-      exitStatus=0
       unset RUNNER_HOME RUNNER_NAME
       RUNNER_NAME="$(basename "${runner//.reg/}")"
       RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
@@ -275,15 +274,13 @@ EOF
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "http://$CONTAINER_IP4_ADDRESS:8000" --token "$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
             if [ $exitStatus -eq 0 ]; then
-              exitStatus=0
               cp -Rf "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
               chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
-              echo "$!" >"$RUN_DIR/act_runner.$RUNNER_NAME.pid"
               echo "$RUNNER_NAME has been registered"
               break
             else
               [ -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid" ] && rm -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid"
-              exitStatus=1
+              exitStatus=$((exitStatus++))
               sleep 20
             fi
           fi
