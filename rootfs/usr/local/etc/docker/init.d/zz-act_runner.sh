@@ -366,7 +366,7 @@ __post_execute() {
     # commands to execute
     if [ -d "$CONF_DIR/multi" ]; then
       for multi in "$CONF_DIR/multi"/*; do
-        if [ -n "$multi" ]; then
+        if [ -n "$multi" ] && [ -d "$multi" ]; then
           unset pid is_running name
           name="$(basename "$multi")"
           if [ -f "$$multi/$name.yaml" ] && [ -f "$multi/runners" ]; then
