@@ -209,10 +209,11 @@ __run_pre_execute_checks() {
       cat <<EOF >"$CONF_DIR/reg/default.sample"
 # Settings for the default gitea runner
 RUNNER_NAME="sample"
+RUNNER_HOME="$CONF_DIR/daemon.yaml"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-RUNNER_HOSTNAME="${INSTANCE_HOSTNAME:-http://127.0.0.1:8000}"
-CONTAINER_IP4_ADDRESS="${INSTANCE_HOSTNAME}"
+RUNNER_HOSTNAME="${HOSTNAME:-http://127.0.0.1:8000}"
+CONTAINER_IP4_ADDRESS="${HOSTNAME}"
 EOF
     fi
     if [ ! -f "$CONF_DIR/.runner" ]; then
