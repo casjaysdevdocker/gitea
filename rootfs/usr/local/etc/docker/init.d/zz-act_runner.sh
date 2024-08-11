@@ -207,14 +207,18 @@ __run_pre_execute_checks() {
     [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/system"
     if [ ! -f "$CONF_DIR/reg/default.sample" ]; then
       cat <<EOF >"$CONF_DIR/reg/default.sample"
-# Settings for the default gitea runner
+# Edit this file and execute it
 RUNNER_NAME="sample"
-RUNNER_HOME="$CONF_DIR/daemon.yaml"
+RUNNER_HOME="$CONF_DIR"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-RUNNER_HOSTNAME="${HOSTNAME:-http://127.0.0.1:8000}"
-CONTAINER_IP4_ADDRESS="${HOSTNAME}"
+RUNNER_HOSTNAME="${HOSTNAME}"
+CONTAINER_IP4_ADDRESS="http://\${RUNNER_HOSTNAME}"
+act_runner register --config "\$RUNNER_HOME/daemon.yaml" --labels "\$RUNNER_LABELS" --name "\$RUNNER_NAME" --instance "\$CONTAINER_IP4_ADDRESS" --token "\$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
+exit \$exitStatus
+
 EOF
+      chmod -Rf 755 "$CONF_DIR/reg/default.sample"
     fi
     if [ ! -f "$CONF_DIR/.runner" ]; then
       sleep 120
@@ -227,8 +231,9 @@ RUNNER_NAME="gitea"
 RUNNER_HOME="$CONF_DIR/multi/$RUNNER_NAME"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-RUNNER_HOSTNAME="${INSTANCE_HOSTNAME:-http://127.0.0.1:8000}"
+RUNNER_HOSTNAME="${CONTAINER_IP4_ADDRESS:-http://127.0.0.1:8000}"
 CONTAINER_IP4_ADDRESS="${CONTAINER_IP4_ADDRESS}"
+
 EOF
       cat <<EOF >"$CONF_DIR/reg/runner.reg"
 # Settings for the default local runner
@@ -236,8 +241,9 @@ RUNNER_NAME="local"
 RUNNER_HOME="$CONF_DIR/multi/$RUNNER_NAME"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-RUNNER_HOSTNAME="${INSTANCE_HOSTNAME:-http://127.0.0.1:8000}"
+RUNNER_HOSTNAME="${CONTAINER_IP4_ADDRESS:-http://127.0.0.1:8000}"
 CONTAINER_IP4_ADDRESS="${CONTAINER_IP4_ADDRESS}"
+
 EOF
     fi
     for runner in "$CONF_DIR/reg"/*.reg; do
