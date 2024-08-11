@@ -228,30 +228,30 @@ EOF
       cat <<EOF >"$CONF_DIR/reg/runner-1.reg"
 # Settings for the default gitea runner
 RUNNER_NAME="runner-1"
-RUNNER_HOME="$CONF_DIR/multi/runner-1"
+RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
-CONTAINER_IP4_ADDRESS="127.0.0.1:8000"
+RUNNER_HOSTNAME="https://${HOSTNAME:-127.0.0.1:8000}"
+RUNER_LOCAL_ADDRESS="http://127.0.0.1:8000"
 
 EOF
       cat <<EOF >"$CONF_DIR/reg/runner-2.reg"
 # Settings for the default local runner
 RUNNER_NAME="runner-2"
-RUNNER_HOME="$CONF_DIR/multi/runner-2"
+RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
-CONTAINER_IP4_ADDRESS="127.0.0.1:8000"
+RUNNER_HOSTNAME="https://${HOSTNAME:-127.0.0.1:8000}"
+RUNER_LOCAL_ADDRESS="http://127.0.0.1:8000"
 
 EOF
     fi
     for runner in "$CONF_DIR/reg"/*.reg; do
-      unset RUNNER_HOME RUNNER_NAME
-      RUNNER_NAME="$(basename "${runner//.reg/}")"
+      [ -f "$runner" ] && . "$runner"
+      RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
       RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
       while :; do
-        [ -f "$runner" ] && . "$runner"
+        [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
         [ -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid" ] && break
         if [ -z "$RUNNER_AUTH_TOKEN" ]; then
           [ -f "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
@@ -262,21 +262,20 @@ EOF
           echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
           sleep 120
         else
-          echo "RUNNER_AUTH_TOKEN has been set: trying to register $RUNNER_NAME"
-          if [ -f "$RUNNER_HOME/runners" ]; then
-            continue
-          else
+          if [ ! -f "$RUNNER_HOME/runners" ]; then
+            echo "RUNNER_AUTH_TOKEN has been set: trying to register $RUNNER_NAME"
             [ -f "$runner" ] && . "$runner"
-            echo "creating $RUNNER_NAME in $RUNNER_HOME and setting hostname to $RUNNER_HOSTNAME"
+            echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNER_LOCAL_ADDRESS"
             mkdir -p "$RUNNER_HOME"
             cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
-            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "http://$CONTAINER_IP4_ADDRESS" --token "$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
-            if [ $exitStatus -eq 0 ]; then
+            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNER_LOCAL_ADDRESS" http://--token "$RUNNER_AUTH_TOKEN" --no-interactive
+            if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
               cp -Rf "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
               chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
               echo "$RUNNER_NAME has been registered"
+              exitStatus=${exitStatus:-0}
               break
             else
               [ -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid" ] && rm -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid"
@@ -286,6 +285,7 @@ EOF
           fi
         fi
       done
+      unset RUNNER_HOME RUNNER_NAME
     done 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" >/dev/null
     echo "$$" >"$RUN_DIR/act_runner.pid"
     echo "$(date)" >"$CONF_DIR/.runner"
