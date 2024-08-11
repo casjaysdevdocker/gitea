@@ -232,7 +232,7 @@ RUNNER_HOME="$CONF_DIR/multi/runner-1"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
-CONTAINER_IP4_ADDRESS="${HOSTNAME}"
+CONTAINER_IP4_ADDRESS="127.0.0.1:8000"
 
 EOF
       cat <<EOF >"$CONF_DIR/reg/runner-2.reg"
@@ -242,7 +242,7 @@ RUNNER_HOME="$CONF_DIR/multi/runner-2"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
-CONTAINER_IP4_ADDRESS="${HOSTNAME}"
+CONTAINER_IP4_ADDRESS="127.0.0.1:8000"
 
 EOF
     fi
@@ -258,7 +258,7 @@ EOF
           [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
           chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
           chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
-          echo "Error: RUNNER_AUTH_TOKEN is not set - visit $INSTANCE_HOSTNAME/admin/actions/runners" >&2
+          echo "Error: RUNNER_AUTH_TOKEN is not set - visit $RUNNER_HOSTNAME/admin/actions/runners" >&2
           echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
           sleep 120
         else
@@ -272,7 +272,7 @@ EOF
             cp -Rf "$CONF_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_NAME.yaml"
-            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "http://$CONTAINER_IP4_ADDRESS:8000" --token "$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
+            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "http://$CONTAINER_IP4_ADDRESS" --token "$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
             if [ $exitStatus -eq 0 ]; then
               cp -Rf "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
               chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
