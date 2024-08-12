@@ -107,9 +107,9 @@ RUNAS_USER="root" # normally root
 #SERVICE_GID="0" # set the group id
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # execute command variables - keep single quotes variables will be expanded later
-EXEC_CMD_BIN='act_runner'                             # command to execute
-EXEC_CMD_ARGS='daemon --config $CONF_DIR/daemon.yaml' # command arguments
-EXEC_PRE_SCRIPT=''                                    # execute script before
+EXEC_CMD_BIN='act_runner'                            # command to execute
+EXEC_CMD_ARGS='daemon --config $ETC_DIR/daemon.yaml' # command arguments
+EXEC_PRE_SCRIPT=''                                   # execute script before
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Is this service a web server
 IS_WEB_SERVER="no"
@@ -164,7 +164,7 @@ RUNNER_LABELS+="debian:docker://casjaysdev/debian:latest,"
 RUNNER_LABELS+="ubuntu:docker://casjaysdev/ubuntu:latest,"
 RUNNER_LABELS+="almalinux:docker://casjaysdev/almalinux:latest,"
 RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest"
-SYS_AUTH_TOKEN="$(sudo -u gitea gitea --config /config/gitea/app.ini actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')"
+SYS_AUTH_TOKEN="$(gosu gitea gitea --config "$ETC_DIR/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
@@ -180,7 +180,7 @@ ADDITIONAL_CONFIG_DIRS=""
 CMD_ENV=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Overwrite based on file/directory
-
+[ -f "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Per Application Variables or imports
 
@@ -200,6 +200,7 @@ __run_pre_execute_checks() {
   local exitStatus=0
   local pre_execute_checks_MessageST="Running preexecute check for $SERVICE_NAME"   # message to show at start
   local pre_execute_checks_MessageEnd="Finished preexecute check for $SERVICE_NAME" # message to show at completion
+  export SYS_AUTH_TOKEN="${SYS_AUTH_TOKEN:-$(gosu -u gitea gitea --config "$ETC_DIR/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')}"
   __banner "$pre_execute_checks_MessageST"
   # Put command to execute in parentheses
   {
@@ -225,7 +226,6 @@ EOF
     if [ ! -f "$CONF_DIR/.runner" ]; then
       sleep 120
     fi
-    SYS_AUTH_TOKEN="${SYS_AUTH_TOKEN:-$(sudo -u gitea gitea --config /config/gitea/app.ini actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')}"
     if [ ! -f "$CONF_DIR/reg/default.reg" ]; then
       cat <<EOF >"$CONF_DIR/reg/runner-1.reg"
 # Settings for the default gitea runner
@@ -259,9 +259,8 @@ EOF
       while :; do
         if [ ! -f "$RUNNER_HOME/runners" ]; then
           [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
+          [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
           if [ -z "$RUNNER_AUTH_TOKEN" ]; then
-            [ -f "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
-            [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
             chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
             chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
             echo "Error: RUNNER_AUTH_TOKEN is not set - visit $RUNNER_HOSTNAME/admin/actions/runners" >&2
