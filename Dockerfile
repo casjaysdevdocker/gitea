@@ -1,4 +1,4 @@
-# syntax=docker/dockerfile:experimental
+# syntax=docker/dockerfile:1
 # Docker image for gitea using the alpine template
 ARG IMAGE_NAME="gitea"
 ARG PHP_SERVER="gitea"
