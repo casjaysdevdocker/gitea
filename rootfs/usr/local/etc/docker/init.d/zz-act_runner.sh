@@ -255,19 +255,18 @@ EOF
       RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
       RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
       while :; do
-        [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
-        [ -f "$RUN_DIR/act_runner.$RUNNER_NAME.pid" ] && break
-        if [ -z "$RUNNER_AUTH_TOKEN" ]; then
-          [ -f "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
-          [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
-          chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
-          chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
-          echo "Error: RUNNER_AUTH_TOKEN is not set - visit $RUNNER_HOSTNAME/admin/actions/runners" >&2
-          echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
-          sleep 120
-        else
-          [ -f "$runner" ] && . "$runner"
-          if [ ! -f "$RUNNER_HOME/runners" ]; then
+        if [ ! -f "$RUNNER_HOME/runners" ]; then
+          [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
+          if [ -z "$RUNNER_AUTH_TOKEN" ]; then
+            [ -f "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
+            [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
+            chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
+            chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
+            echo "Error: RUNNER_AUTH_TOKEN is not set - visit $RUNNER_HOSTNAME/admin/actions/runners" >&2
+            echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
+            sleep 120
+          else
+            [ -f "$runner" ] && . "$runner"
             echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
             mkdir -p "$RUNNER_HOME"
             [ -f "$RUNNER_HOME/daemon.yaml" ] || copy "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
