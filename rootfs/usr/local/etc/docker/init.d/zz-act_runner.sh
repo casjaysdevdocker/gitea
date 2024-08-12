@@ -268,22 +268,23 @@ EOF
         else
           [ -f "$runner" ] && . "$runner"
           if [ ! -f "$RUNNER_HOME/runners" ]; then
-            echo "RUNNER_AUTH_TOKEN has been set: trying to register $RUNNER_NAME"
             echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
             mkdir -p "$RUNNER_HOME"
-            cp -Rf "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
+            [ -f "$RUNNER_HOME/daemon.yaml" ] || copy "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"
-            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive
-            if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
-              cp -Rf "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
-              chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
-              echo "$RUNNER_NAME has been registered"
-              exitStatus=${exitStatus:-0}
-              break
-            else
-              exitStatus=$((exitStatus++))
-              sleep 20
+            if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml" && grep -sq "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"; then
+              act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout
+              if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
+                copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
+                chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
+                echo "$RUNNER_NAME has been registered"
+                exitStatus=${exitStatus:-0}
+                break
+              else
+                exitStatus=$((exitStatus++))
+                sleep 20
+              fi
             fi
           fi
         fi
