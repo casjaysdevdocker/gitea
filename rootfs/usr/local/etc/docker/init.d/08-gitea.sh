@@ -207,6 +207,7 @@ __run_pre_execute_checks() {
   __banner "$pre_execute_checks_MessageST"
   # Put command to execute in parentheses
   {
+    [ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
     [ -d "$CONF_DIR/custom" ] || mkdir -p "$CONF_DIR/custom"
     if [ -n "$CONF_DIR" ] && [ -f "$CONF_DIR/app.ini" ]; then
       sed -i "s|REPLACE_SQL_NAME|$GITEA_SQL_NAME|g" "$CONF_DIR/app.ini"
@@ -251,7 +252,7 @@ __update_conf_files() {
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # custom commands
-
+  __is_dir_empty "/config/ssh" && COPY_SSHD_CONF="yes"
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # replace variables
   __replace "REPLACE_SSH_CONF_DIR" "/config/ssh" "/etc/ssh/sshd_config"
@@ -261,8 +262,9 @@ __update_conf_files() {
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # define actions
-  [ -d " /config/ssh" ] || mkdir -p " /config/ssh"
+  [ -d " /config/ssh" ] || mkdir -p "/config/ssh"
   [ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
+  [ "$COPY_SSHD_CONF" = "yes" ] && Copy "/etc/ssh/sshd_config" "/config/ssh/"
   if [ ! -f /config/ssh/ssh_host_ed25519_key ]; then
     echo "Generating /config/ssh/ssh_host_ed25519_key..."
     ssh-keygen -t ed25519 -f /config/ssh/ssh_host_ed25519_key -N "" >/dev/null &&
