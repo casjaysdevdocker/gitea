@@ -379,12 +379,12 @@ __post_execute() {
     __banner "$postMessageST"
     # commands to execute
     if [ -d "$CONF_DIR/multi" ]; then
-      for multi in "$CONF_DIR/multi"/*; do
-        if [ -n "$multi" ] && [ -d "$multi" ]; then
+      for multi_dir in "$CONF_DIR/multi"/*; do
+        if [ -n "$multi_dir" ] && [ -d "$multi_dir" ]; then
           unset pid is_running name
-          name="$(basename "$multi")"
-          if [ -f "$multi/daemon.yaml" ] && [ -f "$multi/runners" ]; then
-            act_runner daemon --config $multi/daemon.yaml &
+          name="$(basename "$multi_dir")"
+          if [ -f "$multi_dir/daemon.yaml" ] && [ -f "$multi_dir/runners" ]; then
+            act_runner daemon --config $multi_dir/daemon.yaml &
             pid=$!
             sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$pid$" && is_running="yes"
             if [ "$is_running" = "yes" ]; then
