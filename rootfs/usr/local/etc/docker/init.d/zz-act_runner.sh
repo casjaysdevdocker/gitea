@@ -191,7 +191,9 @@ __execute_prerun() {
   __init_config_etc
 
   # Define other actions/commands
-
+  while :; do
+    pgrep gitea && break || { echo "Waiting for gitea to start before continuing" >&2 && sleep 60; }
+  done
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Run any pre-execution checks

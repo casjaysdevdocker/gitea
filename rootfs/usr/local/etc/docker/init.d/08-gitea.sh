@@ -109,7 +109,7 @@ SERVICE_GROUP="gitea" # Set the service group
 # execute command variables - keep single quotes variables will be expanded later
 EXEC_CMD_BIN='gitea'                                                   # command to execute
 EXEC_CMD_ARGS='web '                                                   # command arguments
-EXEC_CMD_ARGS+='--port $SERVICE_PORT --config $CONF_DIR/app.ini '      # command arguments
+EXEC_CMD_ARGS+='--port $SERVICE_PORT --config $ETC_DIR/app.ini '       # command arguments
 EXEC_CMD_ARGS+='--custom-path $CONF_DIR/custom --work-path $DATA_DIR ' # command arguments
 EXEC_PRE_SCRIPT=''                                                     # execute script before
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -264,7 +264,7 @@ __update_conf_files() {
   # define actions
   [ -d " /config/ssh" ] || mkdir -p "/config/ssh"
   [ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
-  [ "$COPY_SSHD_CONF" = "yes" ] && Copy "/etc/ssh/sshd_config" "/config/ssh/"
+  [ "$COPY_SSHD_CONF" = "yes" ] && copy "/etc/ssh/sshd_config" "/config/ssh/"
   if [ ! -f /config/ssh/ssh_host_ed25519_key ]; then
     echo "Generating /config/ssh/ssh_host_ed25519_key..."
     ssh-keygen -t ed25519 -f /config/ssh/ssh_host_ed25519_key -N "" >/dev/null &&
