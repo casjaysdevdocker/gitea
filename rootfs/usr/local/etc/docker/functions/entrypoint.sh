@@ -21,6 +21,7 @@
 # shellcheck disable=SC2016
 # shellcheck disable=SC2031
 # shellcheck disable=SC2120
+# shellcheck disable=SC2153
 # shellcheck disable=SC2155
 # shellcheck disable=SC2199
 # shellcheck disable=SC2317
@@ -191,7 +192,7 @@ __certbot() {
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __init_config_etc() {
-  if __is_dir_empty "$CONF_DIR" || [ ! -d "$CONF_DIR" ]; then
+  if __is_dir_empty "${CONF_DIR}" || [ ! -d "$CONF_DIR" ]; then
     if [ -d "$ETC_DIR" ]; then
       mkdir -p "$CONF_DIR"
       __copy_templates "$ETC_DIR/." "$CONF_DIR/"

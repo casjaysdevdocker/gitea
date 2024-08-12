@@ -194,6 +194,8 @@ __execute_prerun() {
   # Setup /config directories
   __init_config_etc
 
+  # Define other actions/commands
+
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Run any pre-execution checks
@@ -259,17 +261,22 @@ __update_conf_files() {
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # define actions
+  [ -d " /config/ssh" ] || mkdir -p " /config/ssh"
+  [ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
   if [ ! -f /config/ssh/ssh_host_ed25519_key ]; then
     echo "Generating /config/ssh/ssh_host_ed25519_key..."
-    ssh-keygen -t ed25519 -f /config/ssh/ssh_host_ed25519_key -N "" >/dev/null
+    ssh-keygen -t ed25519 -f /config/ssh/ssh_host_ed25519_key -N "" >/dev/null &&
+      __symlink "/config/ssh/ssh_host_ed25519_key" "$DATA_DIR/ssh"
   fi
   if [ ! -f /config/ssh/ssh_host_rsa_key ]; then
     echo "Generating /config/ssh/ssh_host_rsa_key..."
-    ssh-keygen -t rsa -b 3072 -f /config/ssh/ssh_host_rsa_key -N "" >/dev/null
+    ssh-keygen -t rsa -b 3072 -f /config/ssh/ssh_host_rsa_key -N "" >/dev/null &&
+      __symlink "/config/ssh/ssh_host_rsa_key" "$DATA_DIR/ssh"
   fi
   if [ ! -f /config/ssh/ssh_host_ecdsa_key ]; then
     echo "Generating /config/ssh/ssh_host_ecdsa_key..."
-    ssh-keygen -t ecdsa -b 256 -f /config/ssh/ssh_host_ecdsa_key -N "" >/dev/null
+    ssh-keygen -t ecdsa -b 256 -f /config/ssh/ssh_host_ecdsa_key -N "" >/dev/null &&
+      __symlink "/config/ssh/ssh_host_ecdsa_key" "$DATA_DIR/ssh"
   fi
   chmod 0700 "$DATA_DIR/ssh" /config/ssh
   chmod 0600 "$DATA_DIR/ssh"/* /config/ssh/*
@@ -562,6 +569,9 @@ root_user_pass="$(eval echo "${ENV_ROOT_USER_PASS:-$root_user_pass}")"
 [ -d "$LOG_DIR" ] || mkdir -p "$LOG_DIR"
 [ -d "$RUN_DIR" ] || mkdir -p "$RUN_DIR"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# pre-run function
+__execute_prerun
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # create user if needed
 __create_service_user "$SERVICE_USER" "$SERVICE_GROUP" "${WORK_DIR:-/home/$SERVICE_USER}" "${SERVICE_UID:-}" "${SERVICE_GID:-}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -570,8 +580,6 @@ __set_user_group_id $SERVICE_USER ${SERVICE_UID:-} ${SERVICE_GID:-}
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Create base directories
 __setup_directories
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-__execute_prerun
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # set switch user command
 __switch_to_user
