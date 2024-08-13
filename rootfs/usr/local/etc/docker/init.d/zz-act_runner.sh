@@ -266,7 +266,7 @@ EOF
           if [ -z "$RUNNER_AUTH_TOKEN" ]; then
             chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
             chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
-            echo "Error: RUNNER_AUTH_TOKEN is not set - visit $RUNNER_HOSTNAME/admin/actions/runners" >&2
+            echo "$(date +'%H:%M') Error: RUNNER_AUTH_TOKEN is not set - visit $RUNNER_HOSTNAME/admin/actions/runners" >&2
             echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
             sleep 120
           else
@@ -282,10 +282,11 @@ EOF
                 copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
                 chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
                 echo "$RUNNER_NAME has been registered"
-                exitStatus=${exitStatus:-0}
+                exitStatus=0
                 break
               else
                 exitStatus=$((exitStatus++))
+                echo "$(date +'%H:%M') Failes to register $RUNNER_NAME - $exitStatus"
                 sleep 20
               fi
             fi
