@@ -15,7 +15,7 @@ ARG USER="root"
 ARG SHELL_OPTS="set -e -o pipefail"
 
 ARG SERVICE_PORT="80"
-ARG EXPOSE_PORTS=""
+ARG EXPOSE_PORTS="22"
 ARG PHP_VERSION="system"
 ARG NODE_VERSION="system"
 ARG NODE_MANAGER="system"
@@ -230,7 +230,7 @@ ENV TIMEZONE="${TZ}"
 ENV LANG="${LANGUAGE}"
 ENV TERM="xterm-256color"
 ENV PORT="${SERVICE_PORT}"
-ENV ENV_PORTS="${ENV_PORTS}"
+ENV ENV_PORTS="${EXPOSE_PORTS}"
 ENV CONTAINER_NAME="${IMAGE_NAME}"
 ENV HOSTNAME="casjaysdev-${IMAGE_NAME}"
 ENV PHP_SERVER="${PHP_SERVER}"
@@ -244,7 +244,7 @@ COPY --from=build /. /
 
 VOLUME [ "/config","/data" ]
 
-EXPOSE ${SERVICE_PORT} ${ENV_PORTS}
+EXPOSE ${SERVICE_PORT} ${EXPOSE_PORTS}
 
 CMD [ "tail", "-f", "/dev/null" ]
 ENTRYPOINT [ "tini","--","/usr/local/bin/entrypoint.sh" ]
