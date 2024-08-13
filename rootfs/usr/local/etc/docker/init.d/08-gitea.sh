@@ -247,20 +247,17 @@ __update_conf_files() {
   [ -d " /config/ssh" ] || mkdir -p "/config/ssh"
   [ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
   [ "$COPY_SSHD_CONF" = "yes" ] && copy "/etc/ssh/sshd_config" "/config/ssh/"
-  if [ ! -f /config/ssh/ssh_host_ed25519_key ]; then
+  if [ ! -f "/config/ssh/ssh_host_ed25519_key" ]; then
     echo "Generating /config/ssh/ssh_host_ed25519_key..."
-    ssh-keygen -t ed25519 -f /config/ssh/ssh_host_ed25519_key -N "" >/dev/null &&
-      __symlink "/config/ssh/ssh_host_ed25519_key" "$DATA_DIR/ssh"
+    ssh-keygen -t ed25519 -f /config/ssh/ssh_host_ed25519_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_ed25519_key" "$DATA_DIR/ssh/ssh_host_ed25519_key"
   fi
-  if [ ! -f /config/ssh/ssh_host_rsa_key ]; then
+  if [ ! -f "/config/ssh/ssh_host_rsa_key" ]; then
     echo "Generating /config/ssh/ssh_host_rsa_key..."
-    ssh-keygen -t rsa -b 3072 -f /config/ssh/ssh_host_rsa_key -N "" >/dev/null &&
-      __symlink "/config/ssh/ssh_host_rsa_key" "$DATA_DIR/ssh"
+    ssh-keygen -t rsa -b 3072 -f /config/ssh/ssh_host_rsa_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_rsa_key" "$DATA_DIR/ssh/ssh_host_rsa_key"
   fi
-  if [ ! -f /config/ssh/ssh_host_ecdsa_key ]; then
+  if [ ! -f "/config/ssh/ssh_host_ecdsa_key" ]; then
     echo "Generating /config/ssh/ssh_host_ecdsa_key..."
-    ssh-keygen -t ecdsa -b 256 -f /config/ssh/ssh_host_ecdsa_key -N "" >/dev/null &&
-      __symlink "/config/ssh/ssh_host_ecdsa_key" "$DATA_DIR/ssh"
+    ssh-keygen -t ecdsa -b 256 -f /config/ssh/ssh_host_ecdsa_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_ecdsa_key" "$DATA_DIR/ssh/ssh_host_ecdsa_key"
   fi
   chmod 0700 "$DATA_DIR/ssh" /config/ssh
   chmod 0600 "$DATA_DIR/ssh"/* /config/ssh/*

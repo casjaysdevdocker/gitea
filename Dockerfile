@@ -53,7 +53,7 @@ ARG PHP_VERSION
 ARG PHP_SERVER
 ARG SHELL_OPTS
 
-ARG PACK_LIST="btrfs-progs e2fsprogs e2fsprogs-extra git ip6tables iptables openssl pigz shadow-uidmap xfsprogs xz zfs docker docker-registry nginx openssh "
+ARG PACK_LIST="fuse-overlayfs btrfs-progs e2fsprogs e2fsprogs-extra git ip6tables iptables openssl pigz shadow-uidmap xfsprogs xz zfs docker docker-registry nginx openssh "
 
 ENV ENV=~/.profile
 ENV SHELL="/bin/sh"

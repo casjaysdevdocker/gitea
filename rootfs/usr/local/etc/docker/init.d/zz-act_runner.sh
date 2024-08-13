@@ -164,7 +164,7 @@ RUNNER_LABELS+="debian:docker://casjaysdev/debian:latest,"
 RUNNER_LABELS+="ubuntu:docker://casjaysdev/ubuntu:latest,"
 RUNNER_LABELS+="almalinux:docker://casjaysdev/almalinux:latest,"
 RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest"
-SYS_AUTH_TOKEN="$(gosu gitea gitea --config "$ETC_DIR/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')"
+SYS_AUTH_TOKEN="$(sudo -u gitea gitea --config "$ETC_DIR/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
@@ -252,13 +252,14 @@ EOF
     fi
     for runner in "$CONF_DIR/reg"/*.reg; do
       [ -f "$runner" ] && . "$runner"
-      RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
-      RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
-      RUNNER_HOSTNAME="https://${RUNNER_HOSTNAME:-$HOSTNAME}"
-      RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-127.0.0.1:8000}"
-      RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-      RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
       while :; do
+        RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
+        RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
+        RUNNER_HOSTNAME="https://${RUNNER_HOSTNAME:-$HOSTNAME}"
+        RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-127.0.0.1:8000}"
+        RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
+        RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
+        SYS_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(sudo -u gitea gitea --config "$ETC_DIR/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')}"
         if [ ! -f "$RUNNER_HOME/runners" ]; then
           [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
           [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
