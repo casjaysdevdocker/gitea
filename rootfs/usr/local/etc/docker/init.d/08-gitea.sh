@@ -207,25 +207,7 @@ __run_pre_execute_checks() {
   __banner "$pre_execute_checks_MessageST"
   # Put command to execute in parentheses
   {
-    [ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
-    [ -d "$CONF_DIR/custom" ] || mkdir -p "$CONF_DIR/custom"
-    if [ -n "$CONF_DIR" ] && [ -f "$CONF_DIR/app.ini" ]; then
-      sed -i "s|REPLACE_SQL_NAME|$GITEA_SQL_NAME|g" "$CONF_DIR/app.ini"
-      sed -i "s|REPLACE_SQL_USER|$GITEA_SQL_USER|g" "$CONF_DIR/app.ini"
-      sed -i "s|REPLACE_SQL_PASS|$GITEA_SQL_PASS|g" "$CONF_DIR/app.ini"
-      sed -i "s|REPLACE_SQL_TYPE|${GITEA_SQL_TYPE}|g" "$CONF_DIR/app.ini"
-      sed -i "s|REPLACE_SQL_HOST|$GITEA_SQL_DB_HOST|g" "$CONF_DIR/app.ini"
-      sed -i "s|REPLACE_DATABASE_DIR|$DATABASE_DIR|g" "$CONF_DIR/app.ini"
-      sed -i "s|REPLACE_SECRET_KEY|$GITEA_SECRET_KEY|g" "$CONF_DIR/app.ini"
-      sed -i "s|REPLACE_GITEA_EMAIL_CONFIRM|$GITEA_EMAIL_CONFIRM|g" "$CONF_DIR/app.ini"
-      sed -i "s|REPLACE_GITEA_INTERNAL_TOKEN|$GITEA_INTERNAL_TOKEN|g" "$CONF_DIR/app.ini"
-      sed -i "s|REPLACE_GITEA_LFS_JWT_SECRET|$GITEA_LFS_JWT_SECRET|g" "$CONF_DIR/app.ini"
-    fi
-    if [ -n "$DATA_DIR" ] && [ -d "$DATA_DIR" ]; then
-      find "$DATA_DIR" -type d -exec chmod 0777 {} \;
-      chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATA_DIR" 2>/dev/null
-    fi
-    [ -f "$DATABASE_DIR/gitea.db" ] && chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATABASE_DIR/gitea.db" 2>/dev/null
+    true
   }
   exitStatus=$?
   __banner "$pre_execute_checks_MessageEnd: Status $exitStatus"
@@ -282,7 +264,25 @@ __update_conf_files() {
   fi
   chmod 0700 "$DATA_DIR/ssh" /config/ssh
   chmod 0600 "$DATA_DIR/ssh"/* /config/ssh/*
-
+  [ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
+  [ -d "$CONF_DIR/custom" ] || mkdir -p "$CONF_DIR/custom"
+  if [ -n "$CONF_DIR" ] && [ -f "$CONF_DIR/app.ini" ]; then
+    sed -i "s|REPLACE_SQL_NAME|$GITEA_SQL_NAME|g" "$CONF_DIR/app.ini"
+    sed -i "s|REPLACE_SQL_USER|$GITEA_SQL_USER|g" "$CONF_DIR/app.ini"
+    sed -i "s|REPLACE_SQL_PASS|$GITEA_SQL_PASS|g" "$CONF_DIR/app.ini"
+    sed -i "s|REPLACE_SQL_TYPE|${GITEA_SQL_TYPE}|g" "$CONF_DIR/app.ini"
+    sed -i "s|REPLACE_SQL_HOST|$GITEA_SQL_DB_HOST|g" "$CONF_DIR/app.ini"
+    sed -i "s|REPLACE_DATABASE_DIR|$DATABASE_DIR|g" "$CONF_DIR/app.ini"
+    sed -i "s|REPLACE_SECRET_KEY|$GITEA_SECRET_KEY|g" "$CONF_DIR/app.ini"
+    sed -i "s|REPLACE_GITEA_EMAIL_CONFIRM|$GITEA_EMAIL_CONFIRM|g" "$CONF_DIR/app.ini"
+    sed -i "s|REPLACE_GITEA_INTERNAL_TOKEN|$GITEA_INTERNAL_TOKEN|g" "$CONF_DIR/app.ini"
+    sed -i "s|REPLACE_GITEA_LFS_JWT_SECRET|$GITEA_LFS_JWT_SECRET|g" "$CONF_DIR/app.ini"
+  fi
+  if [ -n "$DATA_DIR" ] && [ -d "$DATA_DIR" ]; then
+    find "$DATA_DIR" -type d -exec chmod 0777 {} \;
+    chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATA_DIR" 2>/dev/null
+  fi
+  [ -f "$DATABASE_DIR/gitea.db" ] && chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATABASE_DIR/gitea.db" 2>/dev/null
   # exit function
   return $exitCode
 }
