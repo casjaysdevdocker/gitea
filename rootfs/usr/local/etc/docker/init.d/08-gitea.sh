@@ -96,11 +96,11 @@ WORK_DIR=""
 SERVICE_PORT="8000"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User to use to launch service - IE: postgres
-RUNAS_USER="gitea" # normally root
+RUNAS_USER="git" # normally root
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-SERVICE_USER="gitea"  # execute command as another user
-SERVICE_GROUP="gitea" # Set the service group
+SERVICE_USER="git"  # execute command as another user
+SERVICE_GROUP="git" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set user and group ID
 #SERVICE_UID="0" # set the user id

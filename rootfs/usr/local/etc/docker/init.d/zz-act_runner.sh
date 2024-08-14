@@ -99,8 +99,8 @@ SERVICE_PORT="44015"
 RUNAS_USER="root" # normally root
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-#SERVICE_USER="act_runner"  # execute command as another user
-#SERVICE_GROUP="act_runner" # Set the service group
+#SERVICE_USER="git"  # execute command as another user
+#SERVICE_GROUP="git" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set user and group ID
 #SERVICE_UID="0" # set the user id
