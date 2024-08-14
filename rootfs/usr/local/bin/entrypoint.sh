@@ -12,8 +12,8 @@
 # @@Description      :  Entrypoint file for gitea
 # @@Changelog        :  New script
 # @@TODO             :  Better documentation
-# @@Other            :  
-# @@Resource         :  
+# @@Other            :
+# @@Resource         :
 # @@Terminal App     :  no
 # @@sudo/root        :  no
 # @@Template         :  other/docker-entrypoint
@@ -74,8 +74,8 @@ done
 RUNAS_USER="root" # normally root
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-SERVICE_USER="gitea"  # execute command as another user
-SERVICE_GROUP="gitea" # Set the service group
+SERVICE_USER="git"  # execute command as another user
+SERVICE_GROUP="git" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set user and group ID
 SERVICE_UID="0" # set the user id
