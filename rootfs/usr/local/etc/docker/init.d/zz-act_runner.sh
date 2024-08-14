@@ -260,7 +260,9 @@ EOF
         RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:8000}"
         RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
         RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
-        if [ ! -f "$RUNNER_HOME/runners" ]; then
+        if [ -f "$RUNNER_HOME/runners" ]; then
+          break
+        else
           [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
           [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
           if [ -z "$RUNNER_AUTH_TOKEN" ]; then
@@ -271,6 +273,7 @@ EOF
             sleep 120
           else
             [ -f "$runner" ] && . "$runner"
+
             echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
             mkdir -p "$RUNNER_HOME"
             [ -f "$RUNNER_HOME/daemon.yaml" ] || copy "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
