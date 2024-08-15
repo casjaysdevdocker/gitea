@@ -167,6 +167,7 @@ HOSTNAME="${GITEA_SERVER:-${GITEA_HOSTNAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}}"
 GITEA_SECRET_KEY="${GITEA_SECRET_KEY:-$(__random_password 32)}"
 GITEA_LFS_JWT_SECRET="${GITEA_LFS_JWT_SECRET:-$($EXEC_CMD_BIN generate secret LFS_JWT_SECRET)}"
 GITEA_INTERNAL_TOKEN="${GITEA_INTERNAL_TOKEN:-$($EXEC_CMD_BIN generate secret INTERNAL_TOKEN)}"
+GITEA_RANDOM_COOKIE_KEY="${GITEA_RANDOM_COOKIE_KEY:-$(__random_password 16)}"
 [ "$GITEA_EMAIL_CONFIRM" = "yes" ] && GITEA_EMAIL_CONFIRM="true"
 export CUSTOM_PATH="$ETC_DIR" WORK_DIR="${GITEA_WORK_DIR:-$DATA_DIR}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -239,6 +240,7 @@ __update_conf_files() {
   # replace variables
   __replace "REPLACE_SSH_CONF_DIR" "/config/ssh" "/etc/ssh/sshd_config"
   __replace "REPLACE_SSH_DATA_DIR" "$DATA_DIR/ssh" "/etc/ssh/sshd_config"
+  __replace "REPLACE_RANDOM_COOKIE_KEY" "$GITEA_RANDOM_COOKIE_KEY" "$CONF_DIR/app.ini"
   # replace variables recursively
   #  __find_replace "" "" "$CONF_DIR"
 
