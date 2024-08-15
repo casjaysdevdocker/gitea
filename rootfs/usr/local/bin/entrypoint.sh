@@ -92,9 +92,9 @@ WWW_ROOT_DIR="" # set default web dir
 DATABASE_DIR="" # set database dir
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Healthcheck variables
-HEALTH_ENABLED="yes"                  # enable healthcheck [yes/no]
-SERVICES_LIST="tini,gitea,act_runner" # comma seperated list of processes for the healthcheck
-HEALTH_ENDPOINTS=""                   # url endpoints: [http://localhost/health,http://localhost/test]
+HEALTH_ENABLED="yes"                          # enable healthcheck [yes/no]
+SERVICES_LIST="tini,dockerd,gitea,act_runner" # comma seperated list of processes for the healthcheck
+HEALTH_ENDPOINTS=""                           # url endpoints: [http://localhost/health,http://localhost/test]
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Update path var
 export PATH="${PATH:-}"
