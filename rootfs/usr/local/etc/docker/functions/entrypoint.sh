@@ -49,11 +49,11 @@ __cd() { { [ -d "$1" ] || mkdir -p "$1"; } && builtin cd "$1" || return 1; }
 __is_in_file() { [ -e "$2" ] && grep -Rsq "$1" "$2" && return 0 || return 1; }
 __curl() { curl -q -sfI --max-time 3 -k -o /dev/null "$@" &>/dev/null || return 10; }
 __find() { find "$1" -mindepth 1 -type ${2:-f,d} 2>/dev/null | grep '^' || return 10; }
-__pcheck() { [ -n "$(which pgrep 2>/dev/null)" ] && pgrep -o "$1" &>/dev/null || return 10; }
+__pcheck() { [ -n "$(which pgrep 2>/dev/null)" ] && pgrep -o "$1$" &>/dev/null || return 10; }
 __file_exists_with_content() { [ -n "$1" ] && [ -f "$1" ] && [ -s "$1" ] && return 0 || return 2; }
 __sed() { sed -i 's|'$1'|'$2'|g' "$3" &>/dev/null || sed -i "s|$1|$2|g" "$3" &>/dev/null || return 1; }
 __pgrep() { __pcheck "${1:-SERVICE_NAME}" || __ps "${1:-$SERVICE_NAME}" | grep -qv ' grep' || return 10; }
-__ps() { [ -f "$(type -P ps)" ] && ps "$@" 2>/dev/null | sed 's|:||g' | grep -Fw " ${1:-$SERVICE_NAME}" || return 10; }
+__ps() { [ -f "$(type -P ps)" ] && ps "$@" 2>/dev/null | sed 's|:||g' | grep -Fw " ${1:-$SERVICE_NAME}$" || return 10; }
 __is_dir_empty() { if [ -n "$1" ]; then [ "$(ls -A "$1" 2>/dev/null | wc -l)" -eq 0 ] && return 0 || return 1; else return 1; fi; }
 __get_ip6() { ip a 2>/dev/null | grep -w 'inet6' | awk '{print $2}' | grep -vE '^::1|^fe' | sed 's|/.*||g' | head -n1 | grep '^' || echo ''; }
 __get_ip4() { ip a 2>/dev/null | grep -w 'inet' | awk '{print $2}' | grep -vE '^127.0.0' | sed 's|/.*||g' | head -n1 | grep '^' || echo '127.0.0.1'; }
@@ -310,18 +310,21 @@ __run_once() {
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # run program ever n minutes
 __cron() {
-  trap '[ -f "/run/cron/$cmd" ] && rm -Rf "/run/cron/$cmd";exit 0' SIGINT ERR EXIT
-  test -n "$1" && test -z "${1//[0-9]/}" && interval=$(($1 * 60)) && shift 1 || interval="5"
+  trap 'retVal=$?;[ -f "/run/cron/$bin.run" ] && rm -Rf "/run/cron/$bin.run";[ -f "/run/cron/$bin.pid" ] && rm -Rf "/run/cron/$bin.pid";exit ${retVal:-0}' SIGINT ERR EXIT
+  [ "$1" = "--pid" ] && pid="$2" && shift 2 || pid="$$"
+  test -n "$1" && test -z "${1//[0-9]/}" && interval=$(($1 * 60)) && shift 1 || interval="300"
   [ $# -eq 0 ] && echo "Usage: cron [interval] [command]" && exit 1
   local command="$*"
-  local cmd="${CRON_NAME:-$(echo "$command" | awk -F' ' '{print $1}')}"
+  local bin="$(basename "${CRON_NAME:-$1}")"
   [ -d "/run/cron" ] || mkdir -p "/run/cron"
-  echo "$command" >"/run/cron/$cmd"
+  echo "$pid" >"/run/cron/$bin.pid"
+  echo "$command" >"/run/cron/$bin.run"
+  echo "Log is saved to /data/logs/cron.log"
   while :; do
     eval "$command"
     sleep $interval
-    [ -f "/run/cron/$cmd" ] || break
-  done 2>/dev/stderr | tee -p /data/logs/cron.log >/dev/null
+    [ -f "/run/cron/$bin.run" ] || break
+  done 2>/dev/stderr >>"/data/logs/cron.log"
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __replace() {
