@@ -59,7 +59,9 @@ printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom functions
 __gen_auth_token() {
-  $(sudo -u git gitea --config "/etc/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')||return
+  local user="${GITEA_USER:-SERVICE_USER}"
+  local conf_file="$(find "/config" "/etc" -type f -name '*.ini' | grep -E 'gitea/app.ini|gitea.ini'|head -n1 | grep '^')"
+  [ -f "$conf_file" ] && sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')||return
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Script to execute
@@ -148,6 +150,7 @@ user_pass="${ACT_RUNNER_USER_PASS_WORD:-}" # normal user password
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
+GITEA_USER="${GITEA_USER:-SERVICE_USER}"
 GITEA_PORT="${GITEA_PORT:-8000}"
 INSTANCE_HOSTNAME="${GITEA_HOSTNAME:-$HOSTNAME}"
 RUNNER_LABELS="linux:host,"
