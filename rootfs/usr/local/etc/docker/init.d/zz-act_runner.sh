@@ -61,7 +61,7 @@ printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 __gen_auth_token() {
   local user="${GITEA_USER:-SERVICE_USER}"
   local conf_file="$(find "/config" "/etc" -type f -name '*.ini' | grep -E 'gitea/app.ini|gitea.ini'|head -n1 | grep '^')"
-  [ -f "$conf_file" ] && sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')||return
+  [ -f "$conf_file" ] && sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.'||return
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Script to execute
