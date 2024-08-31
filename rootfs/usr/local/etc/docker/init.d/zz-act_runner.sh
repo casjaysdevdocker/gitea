@@ -58,7 +58,9 @@ done
 printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom functions
-
+__gen_auth_token() {
+  $(sudo -u git gitea --config "/etc/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')||return
+}
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Script to execute
 START_SCRIPT="/usr/local/etc/docker/exec/$SERVICE_NAME"
@@ -164,7 +166,7 @@ RUNNER_LABELS+="debian:docker://casjaysdev/debian:latest,"
 RUNNER_LABELS+="ubuntu:docker://casjaysdev/ubuntu:latest,"
 RUNNER_LABELS+="almalinux:docker://casjaysdev/almalinux:latest,"
 RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest"
-SYS_AUTH_TOKEN="$(sudo -u gitea gitea --config "$ETC_DIR/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')"
+SYS_AUTH_TOKEN="$(__gen_auth_token)"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
@@ -202,7 +204,7 @@ __run_pre_execute_checks() {
   local exitStatus=0
   local pre_execute_checks_MessageST="Running preexecute check for $SERVICE_NAME"   # message to show at start
   local pre_execute_checks_MessageEnd="Finished preexecute check for $SERVICE_NAME" # message to show at completion
-  export SYS_AUTH_TOKEN="${SYS_AUTH_TOKEN:-$(gosu -u gitea gitea --config "$ETC_DIR/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')}"
+  export SYS_AUTH_TOKEN="${SYS_AUTH_TOKEN:-$(__gen_auth_token)}"
   __banner "$pre_execute_checks_MessageST"
   # Put command to execute in parentheses
   {
@@ -228,7 +230,7 @@ EOF
     if [ ! -f "$CONF_DIR/.runner" ]; then
       sleep 120
     fi
-    if [ ! -f "$CONF_DIR/reg/default.reg" ]; then
+    if [ ! -f "$CONF_DIR/reg/runner-1.reg" ]; then
       cat <<EOF >"$CONF_DIR/reg/runner-1.reg"
 # Settings for the default gitea runner
 RUNNER_NAME="runner-1"
@@ -239,6 +241,7 @@ RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_LABELS="$RUNNER_LABELS"
 
 EOF
+if [ ! -f "$CONF_DIR/reg/runner-2.reg" ]; then
       cat <<EOF >"$CONF_DIR/reg/runner-2.reg"
 # Settings for the default local runner
 RUNNER_NAME="runner-2"
@@ -253,7 +256,7 @@ EOF
     for runner in "$CONF_DIR/reg"/*.reg; do
       [ -f "$runner" ] && . "$runner"
       while :; do
-        SYS_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(sudo -u gitea gitea --config "$ETC_DIR/gitea/app.ini" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')}"
+        SYS_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(__gen_auth_token)}"
         RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
         RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
         RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$HOSTNAME}"
@@ -264,8 +267,8 @@ EOF
           break
         else
           [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
-          [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
-          if [ -z "$RUNNER_AUTH_TOKEN" ]; then
+          [ -s "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
+          if [ -n "$RUNNER_AUTH_TOKEN" ]; then
             chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
             chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
             echo "$(date +'%H:%M') Error: RUNNER_AUTH_TOKEN is not set - visit $RUNNER_HOSTNAME/admin/actions/runners" >&2
