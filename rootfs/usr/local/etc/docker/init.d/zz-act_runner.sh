@@ -61,8 +61,8 @@ printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 __gen_auth_token() {
   [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" && return
   local user="${GITEA_USER:-$SERVICE_USER}"
-  local conf_file="$(find "/config" "/etc" -type f -name '*.ini' | grep -E 'gitea/app.ini|gitea.ini'|head -n1 | grep '^')"
-  [ -f "$conf_file" ] && sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.'||return
+  local conf_file="$(find "/config" "/etc" -type f -name '*.ini' | grep -E 'gitea/app.ini|gitea.ini' | head -n1 | grep '^')"
+  [ -f "$conf_file" ] && sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.' || return
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Script to execute
@@ -245,7 +245,8 @@ RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_LABELS="$RUNNER_LABELS"
 
 EOF
-if [ ! -f "$CONF_DIR/reg/runner-2.reg" ]; then
+    fi
+    if [ ! -f "$CONF_DIR/reg/runner-2.reg" ]; then
       cat <<EOF >"$CONF_DIR/reg/runner-2.reg"
 # Settings for the default local runner
 RUNNER_NAME="runner-2"
@@ -259,8 +260,8 @@ EOF
     fi
 
     for runner in "$CONF_DIR/reg"/*.reg; do
-      [ -f "$runner" ] && . "$runner"
       while :; do
+        [ -f "$runner" ] && . "$runner"
         SYS_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(__gen_auth_token)}"
         RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
         RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
