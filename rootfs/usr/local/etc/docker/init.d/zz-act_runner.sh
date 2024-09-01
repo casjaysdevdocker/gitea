@@ -266,6 +266,12 @@ RUNNER_LABELS="$RUNNER_LABELS"
 EOF
     fi
 
+    if [ -f "$CONF_DIR/daemon.yaml" ]; then
+      if [ ! -f "$CONF_DIR/runners" ]; then
+        act_runner register --config "$CONF_DIR/daemon.yaml" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:8000" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout
+      fi
+    fi
+
     for runner in "$CONF_DIR/reg"/*.reg; do
       while :; do
         [ -f "$runner" ] && . "$runner"
@@ -279,7 +285,7 @@ EOF
           RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
           RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
           [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
-          if [ -n "$RUNNER_AUTH_TOKEN" ]; then
+          if [ -z "$RUNNER_AUTH_TOKEN" ]; then
             RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
             echo "$RUNNER_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"
             chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
@@ -288,7 +294,6 @@ EOF
             echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
             sleep 120
           else
-            [ -f "$runner" ] && . "$runner"
             echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
             mkdir -p "$RUNNER_HOME"
             [ -f "$RUNNER_HOME/daemon.yaml" ] || copy "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
