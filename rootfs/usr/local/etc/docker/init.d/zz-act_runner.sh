@@ -63,10 +63,13 @@ __gen_auth_token() {
     echo "$SYS_AUTH_TOKEN"
     return
   else
-    local user conf_file
+    local user conf_file token
     user="${GITEA_USER:-git}"
     conf_file="$(find "/config" "/etc" -type f -name '*.ini' | grep -E 'gitea/app.ini|gitea.ini' | head -n1 | grep '^')"
-    [ -f "$conf_file" ] && sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.' || return 1
+    if [ -f "$conf_file" ]; then
+      token="$(sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')"
+      [ -n "$token" ] && echo "$token" >"$CONF_DIR/tokens/system" && echo "$token" || return 1
+    fi
   fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -156,6 +159,7 @@ user_pass="${ACT_RUNNER_USER_PASS_WORD:-}" # normal user password
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
+SYS_AUTH_TOKEN="$(__gen_auth_token)"
 GITEA_USER="${GITEA_USER:-SERVICE_USER}"
 GITEA_PORT="${GITEA_PORT:-8000}"
 INSTANCE_HOSTNAME="${GITEA_HOSTNAME:-$HOSTNAME}"
@@ -175,7 +179,6 @@ RUNNER_LABELS+="debian:docker://casjaysdev/debian:latest,"
 RUNNER_LABELS+="ubuntu:docker://casjaysdev/ubuntu:latest,"
 RUNNER_LABELS+="almalinux:docker://casjaysdev/almalinux:latest,"
 RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest"
-SYS_AUTH_TOKEN="$(__gen_auth_token)"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
@@ -191,6 +194,7 @@ ADDITIONAL_CONFIG_DIRS=""
 CMD_ENV=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Overwrite based on file/directory
+[ -f "$CONF_DIR/tokens/system" ] && SYS_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
 [ -f "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Per Application Variables or imports
@@ -213,14 +217,12 @@ __run_pre_execute_checks() {
   local exitStatus=0
   local pre_execute_checks_MessageST="Running preexecute check for $SERVICE_NAME"   # message to show at start
   local pre_execute_checks_MessageEnd="Finished preexecute check for $SERVICE_NAME" # message to show at completion
-  export SYS_AUTH_TOKEN="${SYS_AUTH_TOKEN:-$(__gen_auth_token)}"
   __banner "$pre_execute_checks_MessageST"
   # Put command to execute in parentheses
   {
     [ -d "$CONF_DIR/reg" ] || mkdir -p "$CONF_DIR/reg"
     [ -d "$DATA_DIR/cache" ] || mkdir -p "$DATA_DIR/cache"
     [ -d "$CONF_DIR/tokens" ] || mkdir -p "$CONF_DIR/tokens"
-    [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/system"
     if [ ! -f "$CONF_DIR/reg/default.sample" ]; then
       cat <<EOF >"$CONF_DIR/reg/default.sample"
 # Edit this file and execute it
