@@ -269,19 +269,19 @@ EOF
     for runner in "$CONF_DIR/reg"/*.reg; do
       while :; do
         [ -f "$runner" ] && . "$runner"
-        SYS_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(__gen_auth_token)}"
-        RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
-        RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
-        RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$HOSTNAME}"
-        RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:8000}"
-        RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-        RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
         if [ -f "$RUNNER_HOME/runners" ]; then
           break
         else
+          RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
+          RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
+          RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$HOSTNAME}"
+          RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:8000}"
+          RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
+          RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
           [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
-          [ -s "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/$RUNNER_NAME")" || { [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"; }
           if [ -n "$RUNNER_AUTH_TOKEN" ]; then
+            RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
+            echo "$RUNNER_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"
             chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
             chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
             echo "$(date +'%H:%M') Error: RUNNER_AUTH_TOKEN is not set - visit $RUNNER_HOSTNAME/admin/actions/runners" >&2
@@ -289,7 +289,6 @@ EOF
             sleep 120
           else
             [ -f "$runner" ] && . "$runner"
-
             echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
             mkdir -p "$RUNNER_HOME"
             [ -f "$RUNNER_HOME/daemon.yaml" ] || copy "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
@@ -311,8 +310,8 @@ EOF
             fi
           fi
         fi
+        unset RUNNER_HOME RUNNER_NAME RUNNER_AUTH_TOKEN RUNNER_HOSTNAME RUNNER_REGISTER_URL
       done
-      unset RUNNER_HOME RUNNER_NAME
     done 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" >/dev/null
     echo "$$" >"$RUN_DIR/act_runner.pid"
     echo "$(date)" >"$CONF_DIR/.runner"
