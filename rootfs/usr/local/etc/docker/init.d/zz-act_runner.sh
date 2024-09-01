@@ -59,10 +59,15 @@ printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom functions
 __gen_auth_token() {
-  [ -n "$SYS_AUTH_TOKEN" ] && echo "$SYS_AUTH_TOKEN" && return
-  local user="${GITEA_USER:-$SERVICE_USER}"
-  local conf_file="$(find "/config" "/etc" -type f -name '*.ini' | grep -E 'gitea/app.ini|gitea.ini' | head -n1 | grep '^')"
-  [ -f "$conf_file" ] && sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.' || return
+  if [ -n "$SYS_AUTH_TOKEN" ]; then
+    echo "$SYS_AUTH_TOKEN"
+    return
+  else
+    local user conf_file
+    user="${GITEA_USER:-git}"
+    conf_file="$(find "/config" "/etc" -type f -name '*.ini' | grep -E 'gitea/app.ini|gitea.ini' | head -n1 | grep '^')"
+    [ -f "$conf_file" ] && sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.' || return 1
+  fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Script to execute
@@ -104,8 +109,8 @@ SERVICE_PORT="44015"
 RUNAS_USER="root" # normally root
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-#SERVICE_USER="git"  # execute command as another user
-#SERVICE_GROUP="git" # Set the service group
+SERVICE_USER="git"  # execute command as another user
+SERVICE_GROUP="git" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set user and group ID
 #SERVICE_UID="0" # set the user id
