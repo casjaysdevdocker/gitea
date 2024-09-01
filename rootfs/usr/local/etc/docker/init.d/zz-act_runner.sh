@@ -59,17 +59,27 @@ printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom functions
 __gen_auth_token() {
+  local user conf_file auth_token token_dir
+  token_dir="$CONF_DIR/tokens"
+  mkdir -p "$token_dir" >/dev/null 2>&1
   if [ -n "$SYS_AUTH_TOKEN" ]; then
-    echo "$SYS_AUTH_TOKEN"
-    return
+    auth_token="$SYS_AUTH_TOKEN"
   else
-    local user conf_file token
     user="${GITEA_USER:-git}"
-    conf_file="$(find "/config" "/etc" -type f -name '*.ini' | grep -E 'gitea/app.ini|gitea.ini' | head -n1 | grep '^')"
+    conf_file="$(find "/config" "/etc" -type f -name '*.ini' 2>/dev/null | grep -E 'gitea/app.ini|gitea.ini' | head -n1 | grep '^')"
     if [ -f "$conf_file" ]; then
-      token="$(sudo -u $user gitea --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -v '\.\.\.')"
-      [ -n "$token" ] && echo "$token" >"$CONF_DIR/tokens/system" && echo "$token" || return 1
+      if [ -f "$CONF_DIR/tokens/system" ]; then
+        auth_token="$(<"$CONF_DIR/tokens/system")"
+      else
+        auth_token="$(sudo -u $user gitea --config "$conf_file" actions generate-runner-auth_token 2>/dev/null | grep -v '\.\.\.')"
+      fi
     fi
+  fi
+  if [ -n "$auth_token" ]; then
+    echo "$token"
+    echo "$token" >"$CONF_DIR/tokens/system"
+  else
+    return 1
   fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -161,7 +171,7 @@ user_pass="${ACT_RUNNER_USER_PASS_WORD:-}" # normal user password
 # Additional variables
 SYS_AUTH_TOKEN="$(__gen_auth_token)"
 GITEA_USER="${GITEA_USER:-SERVICE_USER}"
-GITEA_PORT="${GITEA_PORT:-8000}"
+GITEA_PORT="${GITEA_PORT:-80}"
 INSTANCE_HOSTNAME="${GITEA_HOSTNAME:-$HOSTNAME}"
 RUNNER_LABELS="linux:host,"
 RUNNER_LABELS+="node:docker://node:latest,"
@@ -194,8 +204,7 @@ ADDITIONAL_CONFIG_DIRS=""
 CMD_ENV=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Overwrite based on file/directory
-[ -f "$CONF_DIR/tokens/system" ] && SYS_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
-[ -f "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
+
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Per Application Variables or imports
 
@@ -222,7 +231,6 @@ __run_pre_execute_checks() {
   {
     [ -d "$CONF_DIR/reg" ] || mkdir -p "$CONF_DIR/reg"
     [ -d "$DATA_DIR/cache" ] || mkdir -p "$DATA_DIR/cache"
-    [ -d "$CONF_DIR/tokens" ] || mkdir -p "$CONF_DIR/tokens"
     if [ ! -f "$CONF_DIR/reg/default.sample" ]; then
       cat <<EOF >"$CONF_DIR/reg/default.sample"
 # Edit this file and execute it
@@ -246,8 +254,8 @@ EOF
 # Settings for the default gitea runner
 RUNNER_NAME="runner-1"
 RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
-RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
-RUNNER_REGISTER_URL="http://127.0.0.1:8000"
+RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:$GITEA_PORT}"
+RUNNER_REGISTER_URL="http://127.0.0.1:$GITEA_PORT"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_LABELS="$RUNNER_LABELS"
 
@@ -258,8 +266,8 @@ EOF
 # Settings for the default local runner
 RUNNER_NAME="runner-2"
 RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
-RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:8000}"
-RUNNER_REGISTER_URL="http://127.0.0.1:8000"
+RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:$GITEA_PORT}"
+RUNNER_REGISTER_URL="http://127.0.0.1:$GITEA_PORT"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_LABELS="$RUNNER_LABELS"
 
@@ -268,7 +276,7 @@ EOF
 
     if [ -f "$CONF_DIR/daemon.yaml" ]; then
       if [ ! -f "$CONF_DIR/runners" ]; then
-        act_runner register --config "$CONF_DIR/daemon.yaml" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:8000" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout
+        act_runner register --config "$CONF_DIR/daemon.yaml" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout
       fi
     fi
 
@@ -281,7 +289,7 @@ EOF
           RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
           RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
           RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$HOSTNAME}"
-          RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:8000}"
+          RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:$GITEA_PORT}"
           RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
           RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
           [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
@@ -295,7 +303,7 @@ EOF
             sleep 120
           else
             echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
-            mkdir -p "$RUNNER_HOME"
+            [ -d "$RUNNER_HOME" ] || mkdir -p "$RUNNER_HOME"
             [ -f "$RUNNER_HOME/daemon.yaml" ] || copy "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"
