@@ -208,6 +208,9 @@ RUNNER_MULTI_DIR="${RUNNER_MULTI_DIR:-$CONF_DIR/multi}"
 RUNNER_CONFIG_NAME="${RUNNER_CONFIG_NAME:-runner.yaml}"
 RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$ETC_DIR/default_config.yaml}"
 RUNNER_DEFAULT_HOME="${RUNNER_DEFAULT_HOME:-$CONF_DIR/default}"
+RUNNER_LOG_FILE="${RUNNER_LOG_FILE:-$LOG_DIR/runners.log}"
+RUNNER_DAEMON_LOG="${RUNNER_DAEMON_LOG:-$LOG_DIR/daemon.log}"
+CACHE_LOG_FILE="${CACHE_LOG_FILE:-$LOG_DIR/cache.log}"
 CACHE_CONFIG_FILE="${CACHE_CONFIG_FILE:-$ETC_DIR/cache_server.yaml}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Per Application Variables or imports
@@ -291,7 +294,7 @@ EOF
         __replace "REPLACE_RUNNER_HOME" "$RUNNER_DEFAULT_HOME" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
-        act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$LOG_DIR/runners.log" &
+        act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$RUNNER_LOG_FILE" &
       fi
 
       for runner in "$CONF_DIR/reg"/*.reg; do
@@ -338,7 +341,7 @@ EOF
                   echo "Runner exists in: $RUNNER_HOME/runners" >&2
                   break
                 else
-                  (act_runner register --config "$RUNNER_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$LOG_DIR/runners.log" && sleep 10) &
+                  (act_runner register --config "$RUNNER_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$RUNNER_LOG_FILE" && sleep 10) &
                   pid=$(__pid_exists $!)
                   sleep 4
                   if [ -n "$pid" ] || [ -f "$RUNNER_HOME/runners" ]; then
@@ -454,7 +457,7 @@ __post_execute() {
     __banner "$postMessageST"
     # commands to execute
     if [ -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
-      act_runner daemon --config $RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME >>"$LOG_DIR/daemon.log" &
+      act_runner daemon --config $RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME >>"$RUNNER_DAEMON_LOG" &
       pid=$!
       sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
       if [ "$is_running" = "yes" ]; then
@@ -474,7 +477,7 @@ __post_execute() {
           name="$(basename "$multi_dir")"
           conf="$multi_dir/$RUNNER_CONFIG_NAME"
           if [ -f "$conf" ] && [ -f "$multi_dir/runners" ]; then
-            act_runner daemon --config $conf >>"$LOG_DIR/daemon.log" &
+            act_runner daemon --config $conf >>"$RUNNER_DAEMON_LOG" &
             pid=$!
             sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
             if [ "$is_running" = "yes" ]; then
@@ -492,7 +495,7 @@ __post_execute() {
     if [ -f "$CACHE_CONFIG_FILE" ]; then
       mkdir -p "$DATA_DIR/cache"
       __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$CACHE_CONFIG_FILE"
-      act_runner cache-server --config $CACHE_CONFIG_FILE -s 0.0.0.0 -p $RUNNER_CACHE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/cache.log" &
+      act_runner cache-server --config $CACHE_CONFIG_FILE -s 0.0.0.0 -p $RUNNER_CACHE_PORT 2>>/dev/stderr | tee -a -p "$CACHE_LOG_FILE" &
       execPid=$!
       if sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$"; then
         echo "Cache server has been started and is listening on $RUNNER_CACHE_PORT"
