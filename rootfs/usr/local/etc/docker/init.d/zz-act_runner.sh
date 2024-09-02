@@ -295,6 +295,7 @@ EOF
       fi
 
       for runner in "$CONF_DIR/reg"/*.reg; do
+        echo "Setting up $runner"
         [ -f "$runner" ] && . "$runner"
         while :; do
           RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
