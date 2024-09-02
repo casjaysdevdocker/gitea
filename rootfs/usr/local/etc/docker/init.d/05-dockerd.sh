@@ -187,9 +187,9 @@ __run_pre_execute_checks() {
   __banner "$pre_execute_checks_MessageST"
   # Put command to execute in parentheses
   {
+    [ -d "/etc/docker" ] || mkdir -p "/etc/docker"
     [ -d "/config/docker" ] || mkdir -p "/config/docker"
     [ -L "/config/docker/daemon.json" ] && unlink "/config/docker/daemon.json"
-    [ -d "/etc/docker" ] || mkdir -p "/etc/docker"
     if [ -n "$DOCKER_REGISTRIES" ]; then
       local set_reg=""
       local get_reg=""
@@ -282,7 +282,7 @@ __update_conf_files() {
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # define actions
-  rm -Rf /var/lib/docker
+  rm -Rf "/var/lib/docker"
   symlink "$DATA_DIR" "/var/lib/docker"
   chmod 777 "$DATA_DIR" "/var/lib/docker"
   # exit function

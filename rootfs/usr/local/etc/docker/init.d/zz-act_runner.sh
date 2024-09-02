@@ -235,6 +235,7 @@ __run_pre_execute_checks() {
   {
     [ -d "$CONF_DIR/reg" ] || mkdir -p "$CONF_DIR/reg"
     [ -d "$DATA_DIR/cache" ] || mkdir -p "$DATA_DIR/cache"
+    [ -d "$CONF_DIR/tokens" ] || mkdir -p "$CONF_DIR/tokens"
     if [ -f "$RUNNER_CONFIG_DEFAULT" ]; then
       if [ ! -f "$CONF_DIR/reg/default.sample" ]; then
         cat <<EOF >"$CONF_DIR/reg/default.sample"
@@ -286,11 +287,11 @@ EOF
       mkdir -p "$RUNNER_DEFAULT_HOME" "$TMP_DIR/runners/gitea"
       [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
       if [ ! -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -n "$SYS_AUTH_TOKEN" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
+        echo "creating gitea in $RUNNER_DEFAULT_HOME and registering with http://$INSTANCE_HOSTNAME"
         __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/runners/gitea" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_HOME" "$RUNNER_DEFAULT_HOME" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
-        echo "creating gitea in $RUNNER_DEFAULT_HOME and registering with http://$INSTANCE_HOSTNAME"
         act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$LOG_DIR/runners.log" &
       fi
 
@@ -307,7 +308,9 @@ EOF
           #
           echo "Initializing $RUNNER_NAME in $RUNNER_HOME"
           #
-          [ -d "$CONF_DIR/tokens" ] || mkdir -p "$RUNNER_HOME" "$CONF_DIR/tokens" "$TMP_DIR/runners/$RUNNER_NAME"
+          [ -d "$RUNNER_HOME" ] || mkdir -p "$RUNNER_HOME"
+          [ -d "$TMP_DIR/runners/$RUNNER_NAME" ] || mkdir -p "$TMP_DIR/runners/$RUNNER_NAME"
+          #
           [ -f "$CONF_DIR/tokens/system" ] && { grep -qs '.' "$CONF_DIR/tokens/system" || rm -Rf "$CONF_DIR/tokens/system"; }
           [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
           #
