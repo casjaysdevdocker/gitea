@@ -167,9 +167,9 @@ user_pass="${ACT_RUNNER_USER_PASS_WORD:-}" # normal user password
 
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
+GITEA_PORT="${GITEA_PORT:-80}"
 SYS_AUTH_TOKEN="$(__gen_auth_token)"
 GITEA_USER="${GITEA_USER:-SERVICE_USER}"
-GITEA_PORT="${GITEA_PORT:-80}"
 INSTANCE_HOSTNAME="${GITEA_HOSTNAME:-$HOSTNAME}"
 RUNNER_LABELS="linux:host,"
 RUNNER_LABELS+="node:docker://node:latest,"
@@ -236,23 +236,20 @@ RUNNER_NAME="gitea"
 RUNNER_HOME="$CONF_DIR"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-RUNNER_HOSTNAME="${HOSTNAME}"
-RUNNER_REGISTER_URL="http://\${RUNNER_HOSTNAME}"
+RUNNER_HOSTNAME="${INSTANCE_HOSTNAME}"
+RUNNER_REGISTER_URL="http://\${INSTANCE_HOSTNAME}"
 act_runner register --config "\$RUNNER_HOME/daemon.yaml" --labels "\$RUNNER_LABELS" --name "\$RUNNER_NAME" --instance "\$RUNNER_REGISTER_URL" --token "\$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
 exit \$exitStatus
 
 EOF
       chmod -Rf 755 "$CONF_DIR/reg/default.sample"
     fi
-    if [ ! -f "$CONF_DIR/.runner" ]; then
-      sleep 120
-    fi
     if [ ! -f "$CONF_DIR/reg/runner-1.reg" ]; then
       cat <<EOF >"$CONF_DIR/reg/runner-1.reg"
 # Settings for the default gitea runner
 RUNNER_NAME="runner-1"
 RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
-RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:$GITEA_PORT}"
+RUNNER_HOSTNAME="http://${INSTANCE_HOSTNAME:-127.0.0.1:$GITEA_PORT}"
 RUNNER_REGISTER_URL="http://127.0.0.1:$GITEA_PORT"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_LABELS="$RUNNER_LABELS"
@@ -264,7 +261,7 @@ EOF
 # Settings for the default local runner
 RUNNER_NAME="runner-2"
 RUNNER_HOME="$CONF_DIR/multi/\$RUNNER_NAME"
-RUNNER_HOSTNAME="http://${HOSTNAME:-127.0.0.1:$GITEA_PORT}"
+RUNNER_HOSTNAME="http://${INSTANCE_HOSTNAME:-127.0.0.1:$GITEA_PORT}"
 RUNNER_REGISTER_URL="http://127.0.0.1:$GITEA_PORT"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_LABELS="$RUNNER_LABELS"
@@ -273,7 +270,8 @@ EOF
     fi
 
     if [ -f "$CONF_DIR/daemon.yaml" ]; then
-      if [ ! -f "$CONF_DIR/runners" ]; then
+      if [ ! -f "$CONF_DIR/runners" ] && [ -n "$SYS_AUTH_TOKEN" ]; then
+        echo "creating gitea in $CONF_DIR and registering with http://$INSTANCE_HOSTNAME"
         act_runner register --config "$CONF_DIR/daemon.yaml" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout
       fi
     fi
@@ -281,43 +279,45 @@ EOF
     for runner in "$CONF_DIR/reg"/*.reg; do
       while :; do
         [ -f "$runner" ] && . "$runner"
-        if [ -f "$RUNNER_HOME/runners" ]; then
-          break
+        RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
+        RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
+        RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
+        RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
+        RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$INSTANCE_HOSTNAME}"
+        RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:$GITEA_PORT}"
+        [ -d "$RUNNER_HOME" ] || mkdir -p "$RUNNER_HOME"
+        [ -d "$CONF_DIR/tokens" ] || mkdir -p "$CONF_DIR/tokens"
+        [ -f "$CONF_DIR/tokens/system" ] && { grep -qs '.' "$CONF_DIR/tokens/system" || rm -Rf "$CONF_DIR/tokens/system"; }
+        [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
+        [ -z "$RUNNER_NAME" ] && [ -z "$RUNNER_HOME" ] && echo "RUNNER_NAME or RUNNER_HOME is not set" >&2 && break
+        { [ -f "$RUNNER_HOME/runners" ] || [ ! -s "$RUNNER_HOME/runners" ]; } && break
+        [ -s "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/system")}"
+        [ -s "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/$RUNNER_NAME")}"
+        if [ -z "$RUNNER_AUTH_TOKEN" ]; then
+          RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(__gen_auth_token)}"
+          echo "$RUNNER_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"
+          chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
+          chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
+          echo "$(date +'%H:%M') Error: RUNNER_AUTH_TOKEN is not set - visit $INSTANCE_HOSTNAME/admin/actions/runners" >&2
+          echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
+          sleep 120
         else
-          RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
-          RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
-          RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$HOSTNAME}"
-          RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:$GITEA_PORT}"
-          RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-          RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
-          [ -n "$RUNNER_NAME" ] && [ -n "$RUNNER_HOME" ] || break
-          if [ -z "$RUNNER_AUTH_TOKEN" ]; then
-            RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
-            echo "$RUNNER_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"
-            chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
-            chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
-            echo "$(date +'%H:%M') Error: RUNNER_AUTH_TOKEN is not set - visit $RUNNER_HOSTNAME/admin/actions/runners" >&2
-            echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
-            sleep 120
-          else
-            echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
-            [ -d "$RUNNER_HOME" ] || mkdir -p "$RUNNER_HOME"
-            [ -f "$RUNNER_HOME/daemon.yaml" ] || copy "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
-            __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml"
-            __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"
-            if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml" && grep -sq "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"; then
-              act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout
-              if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
-                copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
-                chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
-                echo "$RUNNER_NAME has been registered"
-                exitStatus=0
-                break
-              else
-                exitStatus=$((exitStatus++))
-                echo "$(date +'%H:%M') Failes to register $RUNNER_NAME - $exitStatus"
-                sleep 20
-              fi
+          echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
+          [ -f "$RUNNER_HOME/daemon.yaml" ] || copy "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
+          __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml"
+          __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"
+          if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml" && grep -sq "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"; then
+            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout
+            if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
+              copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
+              chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
+              echo "$RUNNER_NAME has been registered"
+              exitStatus=0
+              break
+            else
+              exitStatus=$((exitStatus++))
+              echo "$(date +'%H:%M') Failed to register $RUNNER_NAME - $exitStatus"
+              sleep 20
             fi
           fi
         fi
