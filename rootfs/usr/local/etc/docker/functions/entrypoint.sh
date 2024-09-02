@@ -203,6 +203,8 @@ __display_user_info() {
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __init_config_etc() {
   local COPY="no"
+  local ETC_DIR="${ETC_DIR:-/etc}"
+  local CONF_DIR="${CONF_DIR:-/config}"
   __is_dir_empty "$CONF_DIR" && COPY=yes
   if [ ! -d "$CONF_DIR" ] || [ "$COPY" = "yes" ]; then
     if [ -d "$ETC_DIR" ]; then
@@ -1033,11 +1035,9 @@ __check_service() {
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __switch_to_user() {
-  if [ "$RUNAS_USER" = "roo t" ]; then
-    su_cmd() {
-      su_exec=""
-      eval "$@" || return 1
-    }
+  if [ "$RUNAS_USER" = "root" ]; then
+    su_exec=""
+    su_cmd() { eval "$@" || return 1; }
   elif [ "$(builtin type -P gosu)" ]; then
     su_exec="gosu $RUNAS_USER"
     su_cmd() { gosu $RUNAS_USER "$@" || return 1; }
@@ -1051,10 +1051,8 @@ __switch_to_user() {
     su_exec="su -s /bin/sh - $RUNAS_USER"
     su_cmd() { su -s /bin/sh - $RUNAS_USER -c "$@" || return 1; }
   else
-    su_cmd() {
-      su_exec=""
-      echo "Can not switch to $RUNAS_USER: attempting to run as root" && eval "$@" || return 1
-    }
+    su_exec=""
+    su_cmd() { echo "Can not switch to $RUNAS_USER: attempting to run as root" && eval "$@" || return 1; }
   fi
   export su_exec
 }
