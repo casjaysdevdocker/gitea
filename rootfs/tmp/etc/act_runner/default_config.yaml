@@ -64,3 +64,11 @@ container:
     - '**'
   # overrides the docker client host with the specified one.
   docker_host: ''
+
+cache:
+  # Enable cache server to use actions/cache.
+  enabled: true
+  # The host of the cache server.
+  host: 'REPLACE_RUNNER_CACHE_HOST'
+  # The port of the cache server.
+  port: REPLACE_RUNNER_CACHE_PORT

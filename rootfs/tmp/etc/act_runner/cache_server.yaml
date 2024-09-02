@@ -1,0 +1,9 @@
+log:
+  # The level of logging, can be trace, debug, info, warn, error, fatal
+  level: info
+
+cache:
+  # Enable cache server to use actions/cache.
+  enabled: true
+  # The directory to store the cache data.
+  dir: '/data/act_runner/cache'

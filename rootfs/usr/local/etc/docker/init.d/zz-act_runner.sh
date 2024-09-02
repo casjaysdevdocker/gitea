@@ -128,9 +128,9 @@ SERVICE_GROUP="git" # Set the service group
 #SERVICE_GID="0" # set the group id
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # execute command variables - keep single quotes variables will be expanded later
-EXEC_CMD_BIN='act_runner'                            # command to execute
-EXEC_CMD_ARGS='daemon --config $ETC_DIR/daemon.yaml' # command arguments
-EXEC_PRE_SCRIPT=''                                   # execute script before
+EXEC_CMD_BIN='act_runner'                                    # command to execute
+EXEC_CMD_ARGS='daemon --config $ETC_DIR/default_config.yaml' # command arguments
+EXEC_PRE_SCRIPT=''                                           # execute script before
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Is this service a web server
 IS_WEB_SERVER="no"
@@ -202,7 +202,9 @@ ADDITIONAL_CONFIG_DIRS=""
 CMD_ENV=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Overwrite based on file/directory
-
+RUNNER_CACHE_HOST="${RUNNER_CACHE_HOST:-localhost}"
+RUNNER_CACHE_PORT="${RUNNER_CACHE_PORT:-$SERVICE_PORT}"
+RUNNER_CONFIG_NAME="${RUNNER_CONFIG_NAME:-runner.yaml}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Per Application Variables or imports
 
@@ -229,20 +231,24 @@ __run_pre_execute_checks() {
   {
     [ -d "$CONF_DIR/reg" ] || mkdir -p "$CONF_DIR/reg"
     [ -d "$DATA_DIR/cache" ] || mkdir -p "$DATA_DIR/cache"
-    [ -f "$ETC_DIR/multi.yaml" ] && [ ! -f "$CONF_DIR/multi.yaml" ] && copy "$ETC_DIR/multi.yaml" "$CONF_DIR/multi.yaml"
-    [ -f "$ETC_DIR/daemon.yaml" ] && [ ! -f "$CONF_DIR/daemon.yaml" ] && copy "$ETC_DIR/daemon.yaml" "$CONF_DIR/daemon.yaml"
-    [ -f "$ETC_DIR" ] && [ ! -f "" ] && cp -Rf "$ETC_DIR/." "$CONF_DIR/"
     if [ ! -f "$CONF_DIR/reg/default.sample" ]; then
       cat <<EOF >"$CONF_DIR/reg/default.sample"
 # Edit this file and execute it
-RUNNER_NAME="gitea"
-RUNNER_HOME="$CONF_DIR"
+exitStatus=1
+RUNNER_NAME="default"
+RUNNER_HOME="$HOME/.config/act_runner"
 RUNNER_LABELS="$RUNNER_LABELS"
 RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_HOSTNAME="${INSTANCE_HOSTNAME}"
-RUNNER_REGISTER_URL="http://\${INSTANCE_HOSTNAME}"
-act_runner register --config "\$RUNNER_HOME/daemon.yaml" --labels "\$RUNNER_LABELS" --name "\$RUNNER_NAME" --instance "\$RUNNER_REGISTER_URL" --token "\$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
-exit \$exitStatus
+RUNNER_REGISTER_URL="http://\${RUNNER_HOSTNAME}"
+mkdir -p "\$RUNNER_HOME"
+[ -f \$RUNNER_HOME/config.yaml" ] || act_runner generate-config >"\$RUNNER_HOME/config.yaml"
+act_runner register --config "\$RUNNER_HOME/config.yaml" --labels "\$RUNNER_LABELS" --name "\$RUNNER_NAME" --instance "\$RUNNER_REGISTER_URL" --token "\$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0 || exitStatus=1
+if [ "\$exitStatus" -eq 0 ]; then
+  act_runner daemon --config $"\$RUNNER_HOME/config.yaml" &
+  exitStatus=\$?
+fi
+exit \$exitStatus 
 
 EOF
       chmod -Rf 755 "$CONF_DIR/reg/default.sample"
@@ -272,10 +278,16 @@ RUNNER_LABELS="$RUNNER_LABELS"
 EOF
     fi
 
-    if [ -f "$CONF_DIR/daemon.yaml" ]; then
-      if [ ! -f "$CONF_DIR/runners" ] && [ -n "$SYS_AUTH_TOKEN" ]; then
-        echo "creating gitea in $CONF_DIR and registering with http://$INSTANCE_HOSTNAME"
-        act_runner register --config "$CONF_DIR/daemon.yaml" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout
+    if [ -f "$ETC_DIR/default_config.yaml" ]; then
+      mkdir -p "$CONF_DIR/default"
+      [ -f "$CONF_DIR/default/$RUNNER_CONFIG_NAME" ] || copy "$ETC_DIR/default_config.yaml" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
+      if [ ! -f "$ETC_DIR/runners" ] && [ -f "$CONF_DIR/default/$RUNNER_CONFIG_NAME" ] && [ -n "$SYS_AUTH_TOKEN" ]; then
+        __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/gitea" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
+        __replace "REPLACE_RUNNER_HOME" "$CONF_DIR/default" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
+        __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
+        __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
+        echo "creating gitea in $CONF_DIR/default and registering with http://$INSTANCE_HOSTNAME"
+        act_runner register --config "$CONF_DIR/default/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout
       fi
     fi
 
@@ -308,11 +320,13 @@ EOF
           sleep 120
         else
           echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
-          [ -f "$RUNNER_HOME/daemon.yaml" ] || copy "$ETC_DIR/multi.yaml" "$RUNNER_HOME/daemon.yaml"
-          __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml"
-          __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"
-          if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/daemon.yaml" && grep -sq "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/daemon.yaml"; then
-            act_runner register --config "$RUNNER_HOME/daemon.yaml" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout
+          [ -f "$RUNNER_HOME/$RUNNER_CONFIG_NAME" ] || copy "$ETC_DIR/default_config.yaml" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+          __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+          __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+          __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+          __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+          if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME" && grep -sq "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"; then
+            act_runner register --config "$RUNNER_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout
             if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
               copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
               chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
@@ -326,7 +340,7 @@ EOF
             fi
           else
             exitStatus=$((exitStatus++))
-            echo "Something seems to have gone wrong modifying $RUNNER_HOME/daemon.yaml" >&2
+            echo "Something seems to have gone wrong modifying $RUNNER_HOME/$RUNNER_CONFIG_NAME" >&2
           fi
         fi
         unset RUNNER_HOME RUNNER_NAME RUNNER_AUTH_TOKEN RUNNER_HOSTNAME RUNNER_REGISTER_URL
@@ -418,11 +432,13 @@ __post_execute() {
     # show message
     __banner "$postMessageST"
     # commands to execute
-    if [ -f "$CONF_DIR/runners" ] && [ -f "$CONF_DIR/daemon.yaml" ]; then
-      act_runner daemon --config $CONF_DIR/daemon.yaml &
+    if [ -f "$CONF_DIR/default/runners" ] && [ -f "$CONF_DIR/default/$RUNNER_CONFIG_NAME" ]; then
+      act_runner daemon --config $CONF_DIR/default/$RUNNER_CONFIG_NAME &
       pid=$!
       sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
       if [ "$is_running" = "yes" ]; then
+        echo "$(date)" >"$CONF_DIR/.runner"
+        echo "$$" >"$RUN_DIR/act_runner.pid"
         echo "$pid" >"$RUN_DIR/act_runner.gitea.pid"
         echo "Runner: gitea has been started with pid: $pid" | tee -a -p "$LOG_DIR/init.txt"
       else
@@ -435,8 +451,9 @@ __post_execute() {
       for multi_dir in "$CONF_DIR/multi"/*; do
         if [ -n "$multi_dir" ] && [ -d "$multi_dir" ]; then
           name="$(basename "$multi_dir")"
-          if [ -f "$multi_dir/daemon.yaml" ] && [ -f "$multi_dir/runners" ]; then
-            act_runner daemon --config $multi_dir/daemon.yaml &
+          conf="$multi_dir/$RUNNER_CONFIG_NAME"
+          if [ -f "$conf" ] && [ -f "$multi_dir/runners" ]; then
+            act_runner daemon --config $conf &
             pid=$!
             sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
             if [ "$is_running" = "yes" ]; then
@@ -451,11 +468,11 @@ __post_execute() {
         unset pid is_running name
       done
     fi
-    echo "$(date)" >"$CONF_DIR/.runner"
-    echo "$$" >"$RUN_DIR/act_runner.pid"
-    act_runner cache-server --config $CONF_DIR/daemon.yaml -s 0.0.0.0 -p $SERVICE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/act_runner_cache.log" &
-    execPid=$!
-    sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && return 0 || return 2
+    if [ -f "$CONF_DIR/cache_server.yaml" ]; then
+      act_runner cache-server --config $CONF_DIR/cache_server.yaml -s 0.0.0.0 -p $RUNNER_CACHE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/act_runner_cache.log" &
+      execPid=$!
+      sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && return 0 || return 2
+    fi
     # show exit message
     __banner "$postMessageEnd: Status $retVal"
   ) 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" &
