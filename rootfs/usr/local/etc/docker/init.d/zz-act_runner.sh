@@ -229,7 +229,9 @@ __run_pre_execute_checks() {
   {
     [ -d "$CONF_DIR/reg" ] || mkdir -p "$CONF_DIR/reg"
     [ -d "$DATA_DIR/cache" ] || mkdir -p "$DATA_DIR/cache"
-    [ -d "$ETC_DIR" ] && copy "$ETC_DIR/." "$CONF_DIR/"
+    [ -f "$ETC_DIR/multi.yaml" ] && [ ! -f "$CONF_DIR/multi.yaml" ] && copy "$ETC_DIR/multi.yaml" "$CONF_DIR/multi.yaml"
+    [ -f "$ETC_DIR/daemon.yaml" ] && [ ! -f "$CONF_DIR/daemon.yaml" ] && copy "$ETC_DIR/daemon.yaml" "$CONF_DIR/daemon.yaml"
+    [ -f "$ETC_DIR" ] && [ ! -f "" ] && cp -Rf "$ETC_DIR/." "$CONF_DIR/"
     if [ ! -f "$CONF_DIR/reg/default.sample" ]; then
       cat <<EOF >"$CONF_DIR/reg/default.sample"
 # Edit this file and execute it
