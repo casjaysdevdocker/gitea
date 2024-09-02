@@ -207,6 +207,8 @@ RUNNER_CACHE_PORT="${RUNNER_CACHE_PORT:-$SERVICE_PORT}"
 RUNNER_MULTI_DIR="${RUNNER_MULTI_DIR:-$CONF_DIR/multi}"
 RUNNER_CONFIG_NAME="${RUNNER_CONFIG_NAME:-runner.yaml}"
 RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$ETC_DIR/default_config.yaml}"
+RUNNER_DEFAULT_HOME="${RUNNER_DEFAULT_HOME:-$CONF_DIR/default}"
+CACHE_CONFIG_FILE="${CACHE_CONFIG_FILE:-$ETC_DIR/cache_server.yaml}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Per Application Variables or imports
 
@@ -281,15 +283,15 @@ RUNNER_LABELS="$RUNNER_LABELS"
 EOF
       fi
 
-      mkdir -p "$CONF_DIR/default"
-      [ -f "$CONF_DIR/default/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
-      if [ -n "$SYS_AUTH_TOKEN" ] && [ ! -f "$ETC_DIR/runners" ] && [ -f "$CONF_DIR/default/$RUNNER_CONFIG_NAME" ]; then
-        __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/gitea" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
-        __replace "REPLACE_RUNNER_HOME" "$CONF_DIR/default" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
-        __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
-        __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$CONF_DIR/default/$RUNNER_CONFIG_NAME"
-        echo "creating gitea in $CONF_DIR/default and registering with http://$INSTANCE_HOSTNAME"
-        act_runner register --config "$CONF_DIR/default/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout
+      mkdir -p "$RUNNER_DEFAULT_HOME"
+      [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+      if [ -n "$SYS_AUTH_TOKEN" ] && [ ! -f "$ETC_DIR/runners" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
+        __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/gitea" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+        __replace "REPLACE_RUNNER_HOME" "$RUNNER_DEFAULT_HOME" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+        __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+        __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+        echo "creating gitea in $RUNNER_DEFAULT_HOME and registering with http://$INSTANCE_HOSTNAME"
+        act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout
       fi
 
       for runner in "$CONF_DIR/reg"/*.reg; do
@@ -302,12 +304,14 @@ EOF
           RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$INSTANCE_HOSTNAME}"
           RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:$GITEA_PORT}"
           #
+          echo "Initializing $RUNNER_NAME in $RUNNER_HOME"
+          #
           [ -d "$RUNNER_HOME" ] || mkdir -p "$RUNNER_HOME"
           [ -d "$CONF_DIR/tokens" ] || mkdir -p "$CONF_DIR/tokens"
           [ -f "$CONF_DIR/tokens/system" ] && { grep -qs '.' "$CONF_DIR/tokens/system" || rm -Rf "$CONF_DIR/tokens/system"; }
           [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
           #
-          { [ -f "$RUNNER_HOME/runners" ] || [ ! -s "$RUNNER_HOME/runners" ]; } && break
+          [ -f "$RUNNER_HOME/runners" ] && break
           [ -z "$RUNNER_NAME" ] && [ -z "$RUNNER_HOME" ] && echo "RUNNER_NAME or RUNNER_HOME is not set" >&2 && break
           #
           [ -s "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/system")}"
@@ -321,7 +325,7 @@ EOF
             echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
             sleep 120
           else
-            echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_REGISTER_URL"
+            echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_HOSTNAME"
             [ -f "$RUNNER_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
             __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
@@ -437,8 +441,8 @@ __post_execute() {
     # show message
     __banner "$postMessageST"
     # commands to execute
-    if [ -f "$CONF_DIR/default/runners" ] && [ -f "$CONF_DIR/default/$RUNNER_CONFIG_NAME" ]; then
-      act_runner daemon --config $CONF_DIR/default/$RUNNER_CONFIG_NAME &
+    if [ -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
+      act_runner daemon --config $RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME &
       pid=$!
       sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
       if [ "$is_running" = "yes" ]; then
@@ -474,10 +478,14 @@ __post_execute() {
         unset pid is_running name
       done
     fi
-    if [ -f "$ETC_DIR/cache_server.yaml" ]; then
-      act_runner cache-server --config $ETC_DIR/cache_server.yaml -s 0.0.0.0 -p $RUNNER_CACHE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/act_runner_cache.log" &
+    if [ -f "$CACHE_CONFIG_FILE" ]; then
+      act_runner cache-server --config $CACHE_CONFIG_FILE -s 0.0.0.0 -p $RUNNER_CACHE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/act_runner_cache.log" &
       execPid=$!
-      sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && return 0 || return 2
+      if sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$"; then
+        echo "Cache server has been started and is listening on $RUNNER_CACHE_PORT"
+      else
+        echo "Failed to start the cache server" >&2
+      fi
     fi
     # show exit message
     __banner "$postMessageEnd: Status $retVal"
