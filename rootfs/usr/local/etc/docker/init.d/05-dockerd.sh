@@ -282,7 +282,9 @@ __update_conf_files() {
 
   # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
   # define actions
-
+  rm -Rf /var/lib/docker
+  symlink "$DATA_DIR" "/var/lib/docker"
+  chmod 777 "$DATA_DIR" "/var/lib/docker"
   # exit function
   return $exitCode
 }
