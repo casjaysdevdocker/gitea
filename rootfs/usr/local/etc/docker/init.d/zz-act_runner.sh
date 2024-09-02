@@ -280,24 +280,26 @@ EOF
       while :; do
         [ -f "$runner" ] && . "$runner"
         RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
-        RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
         RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
         RUNNER_HOME="${RUNNER_HOME:-$CONF_DIR/multi/$RUNNER_NAME}"
+        RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(__gen_auth_token)}"
         RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$INSTANCE_HOSTNAME}"
         RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:$GITEA_PORT}"
         [ -d "$RUNNER_HOME" ] || mkdir -p "$RUNNER_HOME"
         [ -d "$CONF_DIR/tokens" ] || mkdir -p "$CONF_DIR/tokens"
         [ -f "$CONF_DIR/tokens/system" ] && { grep -qs '.' "$CONF_DIR/tokens/system" || rm -Rf "$CONF_DIR/tokens/system"; }
         [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
-        [ -z "$RUNNER_NAME" ] && [ -z "$RUNNER_HOME" ] && echo "RUNNER_NAME or RUNNER_HOME is not set" >&2 && break
+        #
         { [ -f "$RUNNER_HOME/runners" ] || [ ! -s "$RUNNER_HOME/runners" ]; } && break
+        [ -z "$RUNNER_NAME" ] && [ -z "$RUNNER_HOME" ] && echo "RUNNER_NAME or RUNNER_HOME is not set" >&2 && break
+        #
         [ -s "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/system")}"
         [ -s "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/$RUNNER_NAME")}"
+        #
+        printf '%s' "$RUNNER_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"
+        chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
+        #
         if [ -z "$RUNNER_AUTH_TOKEN" ]; then
-          RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(__gen_auth_token)}"
-          echo "$RUNNER_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"
-          chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
-          chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
           echo "$(date +'%H:%M') Error: RUNNER_AUTH_TOKEN is not set - visit $INSTANCE_HOSTNAME/admin/actions/runners" >&2
           echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
           sleep 120
@@ -316,16 +318,18 @@ EOF
               break
             else
               exitStatus=$((exitStatus++))
-              echo "$(date +'%H:%M') Failed to register $RUNNER_NAME - $exitStatus"
+              echo "$(date +'%H:%M') Failed to register $RUNNER_NAME - $exitStatus" >&2
               sleep 20
             fi
+          else
+            exitStatus=$((exitStatus++))
+            echo "Something seems to have gone wrong modifying $RUNNER_HOME/daemon.yaml" >&2
           fi
         fi
         unset RUNNER_HOME RUNNER_NAME RUNNER_AUTH_TOKEN RUNNER_HOSTNAME RUNNER_REGISTER_URL
       done
     done 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" >/dev/null
-    echo "$$" >"$RUN_DIR/act_runner.pid"
-    echo "$(date)" >"$CONF_DIR/.runner"
+    chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
     return $exitStatus
   }
   exitStatus=$?
@@ -411,26 +415,41 @@ __post_execute() {
     # show message
     __banner "$postMessageST"
     # commands to execute
+    if [ -f "$CONF_DIR/runners" ] && [ -f "$CONF_DIR/daemon.yaml" ]; then
+      act_runner daemon --config $CONF_DIR/daemon.yaml &
+      pid=$!
+      sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
+      if [ "$is_running" = "yes" ]; then
+        echo "$pid" >"$RUN_DIR/act_runner.gitea.pid"
+        echo "Runner: gitea has been started with pid: $pid" | tee -a -p "$LOG_DIR/init.txt"
+      else
+        echo "Runner: gitea has failed to start" >/dev/stderr
+        [ -f "$RUN_DIR/act_runner.gitea.pid" ] && rm -f "$RUN_DIR/act_runner.gitea.pid"
+      fi
+      unset pid is_running
+    fi
     if [ -d "$CONF_DIR/multi" ]; then
       for multi_dir in "$CONF_DIR/multi"/*; do
         if [ -n "$multi_dir" ] && [ -d "$multi_dir" ]; then
-          unset pid is_running name
           name="$(basename "$multi_dir")"
           if [ -f "$multi_dir/daemon.yaml" ] && [ -f "$multi_dir/runners" ]; then
             act_runner daemon --config $multi_dir/daemon.yaml &
             pid=$!
-            sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$pid$" && is_running="yes"
+            sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
             if [ "$is_running" = "yes" ]; then
               echo "$pid" >"$RUN_DIR/act_runner.$name.pid"
-              echo "$name has been started with pid: $pid" | tee -a -p "$LOG_DIR/init.txt"
+              echo "Runner: $name has been started with pid: $pid" | tee -a -p "$LOG_DIR/init.txt"
             else
-              echo "$name has failed to start" >/dev/stderr
+              echo "Runner: $name has failed to start" >/dev/stderr
               [ -f "$RUN_DIR/act_runner.$name.pid" ] && rm -f "$RUN_DIR/act_runner.$name.pid"
             fi
           fi
         fi
+        unset pid is_running name
       done
     fi
+    echo "$(date)" >"$CONF_DIR/.runner"
+    echo "$$" >"$RUN_DIR/act_runner.pid"
     act_runner cache-server --config $CONF_DIR/daemon.yaml -s 0.0.0.0 -p $SERVICE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/act_runner_cache.log" &
     execPid=$!
     sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && return 0 || return 2
