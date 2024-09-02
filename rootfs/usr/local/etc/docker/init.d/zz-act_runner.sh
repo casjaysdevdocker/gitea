@@ -283,10 +283,10 @@ RUNNER_LABELS="$RUNNER_LABELS"
 EOF
       fi
 
-      mkdir -p "$RUNNER_DEFAULT_HOME"
+      mkdir -p "$RUNNER_DEFAULT_HOME" "$TMP_DIR/runners/gitea"
       [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
       if [ -n "$SYS_AUTH_TOKEN" ] && [ ! -f "$ETC_DIR/runners" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
-        __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/gitea" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+        __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/runners/gitea" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_HOME" "$RUNNER_DEFAULT_HOME" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
@@ -306,8 +306,7 @@ EOF
           #
           echo "Initializing $RUNNER_NAME in $RUNNER_HOME"
           #
-          [ -d "$RUNNER_HOME" ] || mkdir -p "$RUNNER_HOME"
-          [ -d "$CONF_DIR/tokens" ] || mkdir -p "$CONF_DIR/tokens"
+          [ -d "$CONF_DIR/tokens" ] || mkdir -p "$RUNNER_HOME" "$CONF_DIR/tokens" "$TMP_DIR/runners/$RUNNER_NAME"
           [ -f "$CONF_DIR/tokens/system" ] && { grep -qs '.' "$CONF_DIR/tokens/system" || rm -Rf "$CONF_DIR/tokens/system"; }
           [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
           #
@@ -328,10 +327,10 @@ EOF
             echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_HOSTNAME"
             [ -f "$RUNNER_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
             __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
-            __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+            __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/runners/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
             __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
             __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
-            if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME" && grep -sq "$TMP_DIR/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"; then
+            if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME" && grep -sq "$TMP_DIR/runners/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"; then
               act_runner register --config "$RUNNER_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout
               if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
                 copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
