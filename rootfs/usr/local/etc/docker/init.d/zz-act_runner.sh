@@ -59,28 +59,28 @@ printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom functions
 __gen_auth_token() {
-  local user conf_file auth_token token_dir
+  set -x
+  local user conf_file auth_token token_dir gitea_bin exitCode
+  exitCode=1
+  user="${GITEA_USER:-git}"
   token_dir="$CONF_DIR/tokens"
+  gitea_bin="$(command -v gitea)"
   mkdir -p "$token_dir" >/dev/null 2>&1
+  conf_file="$(find "/config" "/etc" -type f -name '*.ini' 2>/dev/null | grep -E 'git/app.ini|gitea/app.ini|gitea.ini' | head -n1 | grep '^')"
   if [ -n "$SYS_AUTH_TOKEN" ]; then
     auth_token="$SYS_AUTH_TOKEN"
-  else
-    user="${GITEA_USER:-git}"
-    conf_file="$(find "/config" "/etc" -type f -name '*.ini' 2>/dev/null | grep -E 'gitea/app.ini|gitea.ini' | head -n1 | grep '^')"
-    if [ -f "$conf_file" ]; then
-      if [ -f "$CONF_DIR/tokens/system" ]; then
-        auth_token="$(<"$CONF_DIR/tokens/system")"
-      else
-        auth_token="$(sudo -u $user gitea --config "$conf_file" actions generate-runner-auth_token 2>/dev/null | grep -v '\.\.\.')"
-      fi
-    fi
+  elif [ -s "$CONF_DIR/tokens/system" ]; then
+    auth_token="$(<"$CONF_DIR/tokens/system")"
   fi
+  auth_token="$(echo "$auth_token" | grep -vE '# |^$')"
+  auth_token="${auth_token:-$(gosu $user $gitea_bin --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -vE '\.\.\.|# |^$')}"
   if [ -n "$auth_token" ]; then
-    echo "$token"
-    echo "$token" >"$CONF_DIR/tokens/system"
-  else
-    return 1
+    exitCode=0
+    echo "$auth_token"
+    echo "$auth_token" >"$CONF_DIR/tokens/system"
   fi
+  set +x
+  return $exitCode
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Script to execute
