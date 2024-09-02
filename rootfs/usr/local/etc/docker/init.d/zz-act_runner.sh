@@ -482,6 +482,7 @@ __post_execute() {
       done
     fi
     if [ -f "$CACHE_CONFIG_FILE" ]; then
+      mkdir -p "$DATA_DIR/cache"
       act_runner cache-server --config $CACHE_CONFIG_FILE -s 0.0.0.0 -p $RUNNER_CACHE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/cache.log" &
       execPid=$!
       if sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$"; then
