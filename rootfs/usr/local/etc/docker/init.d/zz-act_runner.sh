@@ -59,7 +59,6 @@ printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom functions
 __gen_auth_token() {
-  set -x
   local user conf_file auth_token token_dir gitea_bin exitCode
   exitCode=1
   user="${GITEA_USER:-git}"
@@ -79,7 +78,6 @@ __gen_auth_token() {
     echo "$auth_token"
     echo "$auth_token" >"$CONF_DIR/tokens/system"
   fi
-  set +x
   return $exitCode
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
