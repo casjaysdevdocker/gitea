@@ -447,7 +447,6 @@ __post_execute() {
       sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
       if [ "$is_running" = "yes" ]; then
         echo "$(date)" >"$CONF_DIR/.runner"
-        echo "$$" >"$RUN_DIR/act_runner.pid"
         echo "$pid" >"$RUN_DIR/act_runner.gitea.pid"
         echo "Runner: gitea has been started with pid: $pid" | tee -a -p "$LOG_DIR/init.txt"
       else
