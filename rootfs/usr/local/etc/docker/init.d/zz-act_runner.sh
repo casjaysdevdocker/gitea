@@ -285,13 +285,13 @@ EOF
 
       mkdir -p "$RUNNER_DEFAULT_HOME" "$TMP_DIR/runners/gitea"
       [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
-      if [ -n "$SYS_AUTH_TOKEN" ] && [ ! -f "$ETC_DIR/runners" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
+      if [ ! -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -n "$SYS_AUTH_TOKEN" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
         __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/runners/gitea" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_HOME" "$RUNNER_DEFAULT_HOME" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         echo "creating gitea in $RUNNER_DEFAULT_HOME and registering with http://$INSTANCE_HOSTNAME"
-        act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout
+        act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$LOG_DIR/runners.log" &
       fi
 
       for runner in "$CONF_DIR/reg"/*.reg; do
@@ -310,7 +310,6 @@ EOF
           [ -f "$CONF_DIR/tokens/system" ] && { grep -qs '.' "$CONF_DIR/tokens/system" || rm -Rf "$CONF_DIR/tokens/system"; }
           [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
           #
-          [ -f "$RUNNER_HOME/runners" ] && break
           [ -z "$RUNNER_NAME" ] && [ -z "$RUNNER_HOME" ] && echo "RUNNER_NAME or RUNNER_HOME is not set" >&2 && break
           #
           [ -s "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/system")}"
@@ -331,17 +330,21 @@ EOF
             __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
             __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
             if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME" && grep -sq "$TMP_DIR/runners/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"; then
-              act_runner register --config "$RUNNER_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout
-              if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
-                copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
-                chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
-                echo "$RUNNER_NAME has been registered"
-                exitStatus=0
+              if [ -f "$RUNNER_HOME/runners" ]; then
                 break
               else
-                exitStatus=$((exitStatus++))
-                echo "$(date +'%H:%M') Failed to register $RUNNER_NAME - $exitStatus" >&2
-                sleep 20
+                act_runner register --config "$RUNNER_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$LOG_DIR/runners.log"
+                if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
+                  copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
+                  chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
+                  echo "$RUNNER_NAME has been registered"
+                  exitStatus=0
+                  break
+                else
+                  exitStatus=$((exitStatus++))
+                  echo "$(date +'%H:%M') Failed to register $RUNNER_NAME - $exitStatus" >&2
+                  sleep 20
+                fi
               fi
             else
               exitStatus=$((exitStatus++))
@@ -354,6 +357,7 @@ EOF
         echo "Done proccessing $runner"
       done 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" >/dev/null
     fi
+    exitStatus="${exitStatus:-0}"
     chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
     return $exitStatus
   }
@@ -441,7 +445,7 @@ __post_execute() {
     __banner "$postMessageST"
     # commands to execute
     if [ -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
-      act_runner daemon --config $RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME &
+      act_runner daemon --config $RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME >>"$LOG_DIR/daemon.log" &
       pid=$!
       sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
       if [ "$is_running" = "yes" ]; then
@@ -461,7 +465,7 @@ __post_execute() {
           name="$(basename "$multi_dir")"
           conf="$multi_dir/$RUNNER_CONFIG_NAME"
           if [ -f "$conf" ] && [ -f "$multi_dir/runners" ]; then
-            act_runner daemon --config $conf &
+            act_runner daemon --config $conf >>"$LOG_DIR/daemon.log" &
             pid=$!
             sleep 5 && ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$" && is_running="yes"
             if [ "$is_running" = "yes" ]; then
@@ -477,7 +481,7 @@ __post_execute() {
       done
     fi
     if [ -f "$CACHE_CONFIG_FILE" ]; then
-      act_runner cache-server --config $CACHE_CONFIG_FILE -s 0.0.0.0 -p $RUNNER_CACHE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/act_runner_cache.log" &
+      act_runner cache-server --config $CACHE_CONFIG_FILE -s 0.0.0.0 -p $RUNNER_CACHE_PORT 2>>/dev/stderr | tee -a -p "$LOG_DIR/cache.log" &
       execPid=$!
       if sleep 5 && ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$"; then
         echo "Cache server has been started and is listening on $RUNNER_CACHE_PORT"
