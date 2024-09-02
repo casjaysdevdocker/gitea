@@ -315,7 +315,7 @@ EOF
             [ -d "$TMP_DIR/runners/$RUNNER_NAME" ] || mkdir -p "$TMP_DIR/runners/$RUNNER_NAME"
             #
             [ -f "$CONF_DIR/tokens/system" ] && { grep -qs '.' "$CONF_DIR/tokens/system" || rm -Rf "$CONF_DIR/tokens/system"; }
-            [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
+            [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs '.' "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
             #
             [ -z "$RUNNER_NAME" ] && [ -z "$RUNNER_HOME" ] && echo "RUNNER_NAME or RUNNER_HOME is not set" >&2 && break
             #
