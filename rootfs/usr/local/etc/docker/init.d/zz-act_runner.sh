@@ -128,9 +128,9 @@ SERVICE_GROUP="git" # Set the service group
 #SERVICE_GID="0" # set the group id
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # execute command variables - keep single quotes variables will be expanded later
-EXEC_CMD_BIN='act_runner'                                    # command to execute
-EXEC_CMD_ARGS='daemon --config $ETC_DIR/default_config.yaml' # command arguments
-EXEC_PRE_SCRIPT=''                                           # execute script before
+EXEC_CMD_BIN=''    # command to execute
+EXEC_CMD_ARGS=''   # command arguments
+EXEC_PRE_SCRIPT='' # execute script before
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Is this service a web server
 IS_WEB_SERVER="no"
