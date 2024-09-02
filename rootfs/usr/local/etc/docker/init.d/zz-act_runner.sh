@@ -296,7 +296,7 @@ EOF
         __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
         act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://127.0.0.1:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$RUNNER_LOG_FILE" &
       fi
-
+      set -x
       for runner in "$CONF_DIR/reg"/*.reg; do
         echo "Setting up $runner"
         if [ -f "$runner" ]; then
@@ -371,6 +371,7 @@ EOF
     fi
     exitStatus="${exitStatus:-0}"
     chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
+    set +x
     return $exitStatus
   }
   exitStatus=$?
