@@ -257,7 +257,6 @@ fi
 exit \$exitStatus 
 
 EOF
-        chmod -Rf 755 "$CONF_DIR/reg/default.sample"
       fi
       if [ ! -f "$CONF_DIR/reg/runner-1.reg" ]; then
         cat <<EOF >"$CONF_DIR/reg/runner-1.reg"
@@ -283,7 +282,7 @@ RUNNER_LABELS="$RUNNER_LABELS"
 
 EOF
       fi
-
+      chmod -Rf 755 "$CONF_DIR/reg"/*
       mkdir -p "$RUNNER_DEFAULT_HOME" "$TMP_DIR/runners/gitea"
       [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
       if [ ! -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -n "$SYS_AUTH_TOKEN" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
@@ -297,67 +296,73 @@ EOF
 
       for runner in "$CONF_DIR/reg"/*.reg; do
         echo "Setting up $runner"
-        [ -f "$runner" ] && . "$runner"
-        while :; do
-          RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
-          RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
-          RUNNER_HOME="${RUNNER_HOME:-$RUNNER_MULTI_DIR/$RUNNER_NAME}"
-          RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(__gen_auth_token)}"
-          RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$INSTANCE_HOSTNAME}"
-          RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:$GITEA_PORT}"
-          #
-          echo "Initializing $RUNNER_NAME in $RUNNER_HOME"
-          #
-          [ -d "$RUNNER_HOME" ] || mkdir -p "$RUNNER_HOME"
-          [ -d "$TMP_DIR/runners/$RUNNER_NAME" ] || mkdir -p "$TMP_DIR/runners/$RUNNER_NAME"
-          #
-          [ -f "$CONF_DIR/tokens/system" ] && { grep -qs '.' "$CONF_DIR/tokens/system" || rm -Rf "$CONF_DIR/tokens/system"; }
-          [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
-          #
-          [ -z "$RUNNER_NAME" ] && [ -z "$RUNNER_HOME" ] && echo "RUNNER_NAME or RUNNER_HOME is not set" >&2 && break
-          #
-          [ -s "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/system")}"
-          [ -s "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/$RUNNER_NAME")}"
-          #
-          printf '%s' "$RUNNER_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"
-          chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
-          #
-          if [ -z "$RUNNER_AUTH_TOKEN" ]; then
-            echo "$(date +'%H:%M') Error: RUNNER_AUTH_TOKEN is not set - visit $INSTANCE_HOSTNAME/admin/actions/runners" >&2
-            echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
-            sleep 120
-          else
-            echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_HOSTNAME"
-            [ -f "$RUNNER_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
-            __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
-            __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/runners/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
-            __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
-            __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
-            if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME" && grep -sq "$TMP_DIR/runners/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"; then
-              if [ -f "$RUNNER_HOME/runners" ]; then
-                break
-              else
-                act_runner register --config "$RUNNER_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$LOG_DIR/runners.log"
-                if [ $? -eq 0 ] || [ -f "$RUNNER_HOME/runners" ]; then
-                  copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
-                  chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
-                  echo "$RUNNER_NAME has been registered"
-                  exitStatus=0
+        if [ -f "$runner" ]; then
+          . "$runner"
+          while :; do
+            RUNNER_LABELS="${RUNNER_LABELS:-act_runner}"
+            RUNNER_NAME="${RUNNER_NAME:-$(basename "${runner//.reg/}")}"
+            RUNNER_HOME="${RUNNER_HOME:-$RUNNER_MULTI_DIR/$RUNNER_NAME}"
+            RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(__gen_auth_token)}"
+            RUNNER_HOSTNAME="${RUNNER_HOSTNAME:-http://$INSTANCE_HOSTNAME}"
+            RUNNER_REGISTER_URL="${RUNNER_REGISTER_URL:-http://127.0.0.1:$GITEA_PORT}"
+            #
+            echo "Initializing $RUNNER_NAME in $RUNNER_HOME"
+            #
+            [ -d "$RUNNER_HOME" ] || mkdir -p "$RUNNER_HOME"
+            [ -d "$TMP_DIR/runners/$RUNNER_NAME" ] || mkdir -p "$TMP_DIR/runners/$RUNNER_NAME"
+            #
+            [ -f "$CONF_DIR/tokens/system" ] && { grep -qs '.' "$CONF_DIR/tokens/system" || rm -Rf "$CONF_DIR/tokens/system"; }
+            [ -f "$CONF_DIR/tokens/$RUNNER_NAME" ] && { grep -qs "$CONF_DIR/tokens/$RUNNER_NAME" || rm -Rf "$CONF_DIR/tokens/$RUNNER_NAME"; }
+            #
+            [ -z "$RUNNER_NAME" ] && [ -z "$RUNNER_HOME" ] && echo "RUNNER_NAME or RUNNER_HOME is not set" >&2 && break
+            #
+            [ -s "$CONF_DIR/tokens/system" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/system")}"
+            [ -s "$CONF_DIR/tokens/$RUNNER_NAME" ] && RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$(<"$CONF_DIR/tokens/$RUNNER_NAME")}"
+            #
+            printf '%s' "$RUNNER_AUTH_TOKEN" >"$CONF_DIR/tokens/$RUNNER_NAME"
+            chmod -Rf 600 "$CONF_DIR/tokens/system" "$CONF_DIR/tokens/$RUNNER_NAME" 2>/dev/null
+            #
+            if [ -z "$RUNNER_AUTH_TOKEN" ]; then
+              echo "$(date +'%H:%M') Error: RUNNER_AUTH_TOKEN is not set - visit $INSTANCE_HOSTNAME/admin/actions/runners" >&2
+              echo "Then edit $runner or set in $CONF_DIR/tokens/$RUNNER_NAME" >&2
+              sleep 120
+            else
+              echo "creating $RUNNER_NAME in $RUNNER_HOME and registering with $RUNNER_HOSTNAME"
+              [ -f "$RUNNER_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+              __replace "REPLACE_RUNNER_HOME" "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+              __replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/runners/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+              __replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+              __replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"
+              if grep -sq "$RUNNER_HOME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME" && grep -sq "$TMP_DIR/runners/$RUNNER_NAME" "$RUNNER_HOME/$RUNNER_CONFIG_NAME"; then
+                if [ -f "$RUNNER_HOME/runners" ]; then
+                  echo "Runner exists in: $RUNNER_HOME/runners" >&2
                   break
                 else
-                  exitStatus=$((exitStatus++))
-                  echo "$(date +'%H:%M') Failed to register $RUNNER_NAME - $exitStatus" >&2
-                  sleep 20
+                  (act_runner register --config "$RUNNER_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "$RUNNER_NAME" --instance "$RUNNER_REGISTER_URL" --token "$RUNNER_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$LOG_DIR/runners.log" && sleep 10) &
+                  pid=$(__pid_exists $!)
+                  sleep 4
+                  if [ -n "$pid" ] || [ -f "$RUNNER_HOME/runners" ]; then
+                    copy "$runner" "$RUNNER_HOME/$RUNNER_NAME.reg"
+                    chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$RUNNER_HOME"
+                    echo "$RUNNER_NAME has been registered"
+                    exitStatus=0
+                    break
+                  else
+                    exitStatus=$((exitStatus++))
+                    echo "$(date +'%H:%M') Failed to register $RUNNER_NAME - $exitStatus" >&2
+                    sleep 20
+                  fi
                 fi
+              else
+                exitStatus=$((exitStatus++))
+                echo "Something seems to have gone wrong modifying $RUNNER_HOME/$RUNNER_CONFIG_NAME" >&2
+                break
               fi
-            else
-              exitStatus=$((exitStatus++))
-              echo "Something seems to have gone wrong modifying $RUNNER_HOME/$RUNNER_CONFIG_NAME" >&2
             fi
-          fi
-          echo "$RUNNER_NAME seems to be configured"
-          unset RUNNER_HOME RUNNER_NAME RUNNER_AUTH_TOKEN RUNNER_HOSTNAME RUNNER_REGISTER_URL
-        done
+            echo "$RUNNER_NAME seems to be configured"
+            unset RUNNER_HOME RUNNER_NAME RUNNER_AUTH_TOKEN RUNNER_HOSTNAME RUNNER_REGISTER_URL
+          done
+        fi
         echo "Done proccessing $runner"
       done 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" >/dev/null
     fi
