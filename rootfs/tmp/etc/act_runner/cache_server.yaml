@@ -1,9 +1,8 @@
 log:
-  # The level of logging, can be trace, debug, info, warn, error, fatal
-  level: info
+  level: warn
 
 cache:
   enabled: true
-  dir: '/data/act_runner/cache'
-  # host: '0.0.0.0'
-  # port: REPLACE_RUNNER_CACHE_PORT
+  dir: 'REPLACE_RUNNER_CACHE_DIR'
+  host: '0.0.0.0'
+  port: REPLACE_RUNNER_CACHE_PORT
