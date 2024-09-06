@@ -244,6 +244,7 @@ __run_pre_execute_checks() {
       if [ ! -f "$CONF_DIR/reg/default.sample" ]; then
         echo "A sample registration file can be found in: $CONF_DIR/reg/default.sample" >/dev/stdout
         cat <<EOF >"$CONF_DIR/reg/default.sample"
+#!/usr/bin/env bash
 # Edit this file and execute it
 exitStatus=1
 RUNNER_NAME="\$(hostname -f)"
@@ -253,10 +254,10 @@ RUNNER_AUTH_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 RUNNER_LABELS="$RUNNER_LABELS"
 ACT_API_URL="\$(curl -q -LSsf -X 'GET' 'https://gitea.com/api/v1/repos/gitea/act_runner/releases/latest' -H 'accept: application/json' | jq '.[]' | jq -rc '.[].browser_download_url' 2>/dev/null)"
 mkdir -p "\$RUNNER_HOME"
-case "\$(uname -m)" in x86_64) ACT_API_URL="$(echo "\$ACT_API_URL" | grep 'linux.*amd64$')" ;; aarch64) ACT_API_URL="(echo "\$ACT_API_URL"|grep 'linux.*aarch64$')" ;; *) echo "\$(uname -m) is not supported by this script" >&2 && exit 1 ;; esac
+case "\$(uname -m)" in x86_64) ACT_API_URL="\$(echo "\$ACT_API_URL" | grep 'linux.*amd64$')" ;; aarch64) ACT_API_URL="(echo "\$ACT_API_URL"|grep 'linux.*aarch64$')" ;; *) echo "\$(uname -m) is not supported by this script" >&2 && exit 1 ;; esac
 if [ -n "\$ACT_API_URL" ]; then
   curl -q -LSsf "\$ACT_API_URL" -o "/usr/local/bin/act_runner" && chmod -Rf 755 "/usr/local/bin/act_runner" 
-  [ -f \$RUNNER_HOME/config.yaml" ] || act_runner generate-config >"\$RUNNER_HOME/config.yaml"
+  [ -f "\$RUNNER_HOME/config.yaml" ] || act_runner generate-config >"\$RUNNER_HOME/config.yaml"
   act_runner register --config "\$RUNNER_HOME/config.yaml" --labels "\$RUNNER_LABELS" --name "\$RUNNER_NAME" --instance "\$RUNNER_REGISTER_URL" --token "\$RUNNER_AUTH_TOKEN" --no-interactive && exitStatus=0
   if [ "\$exitStatus" -eq 0 ]; then
     echo "Act runner has been registered with server: \$RUNNER_REGISTER_URL"
