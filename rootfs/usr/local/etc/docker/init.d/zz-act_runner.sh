@@ -186,6 +186,7 @@ RUNNER_LABELS+="alpine:docker://casjaysdev/alpine:latest,"
 RUNNER_LABELS+="debian:docker://casjaysdev/debian:latest,"
 RUNNER_LABELS+="ubuntu:docker://casjaysdev/ubuntu:latest,"
 RUNNER_LABELS+="almalinux:docker://casjaysdev/almalinux:latest,"
+RUNNER_LABELS+="ubuntu-latest:docker://catthehacker/ubuntu:full-latest,"
 RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
