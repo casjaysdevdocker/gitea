@@ -19,9 +19,12 @@ cleanup() {
 trap cleanup SIGTERM SIGINT
 
 # Validate required environment variables
-if [ -z "$SERVER_ADDRESS" ]; then
-	log "ERROR: SERVER_ADDRESS environment variable is required"
-	exit 1
+if [ -n "$SERVER_ADDRESS" ]; then
+	if ! echo "$SERVER_ADDRESS" | grep -q '://'; then
+		SERVER_ADDRESS="http://$SERVER_ADDRESS"
+	fi
+else
+	SERVER_ADDRESS=http://$HOSTNAME
 fi
 
 if [ -z "$SERVER_TOKEN" ]; then
