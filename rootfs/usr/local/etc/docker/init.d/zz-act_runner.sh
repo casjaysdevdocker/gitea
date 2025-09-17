@@ -362,7 +362,7 @@ __post_execute() {
 	local postMessageST="Running post commands for $SERVICE_NAME"   # message to show at start
 	local postMessageEnd="Finished post commands for $SERVICE_NAME" # message to show at completion
 	local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}"  # set hostname
-
+	export SERVER_ADDRESS="$INSTANCE_HOSTNAME" SERVER_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}" RUNNERS_ENABLE="${RUNNERS_START:-5}" RUNNER_LABELS
 	# wait
 	sleep $waitTime
 	# execute commands
@@ -399,6 +399,7 @@ __post_execute() {
 			fi
 			unset pid
 		fi
+		[ -x "/usr/local/bin/start-runners" ] && /usr/local/bin/start-runners &
 		# show exit message
 		__banner "$postMessageEnd: Status $retVal"
 	) 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" &

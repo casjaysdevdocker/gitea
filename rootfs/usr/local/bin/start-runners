@@ -1,0 +1,87 @@
+#!/bin/bash
+
+set -e
+
+# Function to log messages with timestamp
+log() {
+	echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"
+}
+
+# Function to cleanup child processes on exit
+cleanup() {
+	log "Shutting down runners..."
+	kill $(jobs -p) 2>/dev/null || true
+	wait
+	log "All runners stopped"
+}
+
+# Set up signal handling
+trap cleanup SIGTERM SIGINT
+
+# Validate required environment variables
+if [ -z "$SERVER_ADDRESS" ]; then
+	log "ERROR: SERVER_ADDRESS environment variable is required"
+	exit 1
+fi
+
+if [ -z "$SERVER_TOKEN" ]; then
+	log "ERROR: SERVER_TOKEN environment variable is required"
+	exit 1
+fi
+
+RUNNER_LABELS="${RUNNER_LABELS:-ubuntu-latest:docker://node:16-bullseye,ubuntu-22.04:docker://node:16-bullseye}"
+# Determine number of runners to start
+RUNNERS_COUNT=${RUNNERS_ENABLE:-1}
+
+# Validate RUNNERS_COUNT is a positive integer
+if ! [[ "$RUNNERS_COUNT" =~ ^[0-9]+$ ]] || [ "$RUNNERS_COUNT" -lt 1 ]; then
+	log "WARNING: Invalid RUNNERS_ENABLE value '$RUNNERS_ENABLE', defaulting to 1"
+	RUNNERS_COUNT=1
+fi
+
+log "Starting $RUNNERS_COUNT act_runner instance(s)"
+log "Server Address: $SERVER_ADDRESS"
+log "Runner Name Prefix: ${RUNNER_NAME_PREFIX:-runner}"
+
+# Function to start a single runner
+start_runner() {
+	local runner_id=$1
+	local runner_name="${RUNNER_NAME_PREFIX:-runner}-${runner_id}"
+	local runner_dir="/data/runner-${runner_id}"
+
+	# Create runner directory
+	mkdir -p "$runner_dir"
+	cd "$runner_dir"
+
+	log "Starting runner: $runner_name (ID: $runner_id)"
+
+	# Register the runner (this creates the .runner file)
+	log "Registering runner: $runner_name"
+	act_runner register \
+		--instance "$SERVER_ADDRESS" \
+		--token "$SERVER_TOKEN" \
+		--name "$runner_name" \
+		--labels "$RUNNER_LABELS" \
+		--no-interactive
+
+	if [ $? -ne 0 ]; then
+		log "ERROR: Failed to register runner $runner_name"
+		return 1
+	fi
+
+	# Start the daemon
+	log "Starting daemon for runner: $runner_name"
+	exec act_runner daemon --config .runner
+}
+
+# Start runners in background
+for i in $(seq 1 $RUNNERS_COUNT); do
+	(start_runner $i) &
+	sleep 2 # Small delay between starting runners
+done
+
+log "All $RUNNERS_COUNT runners started successfully"
+log "Process IDs: $(jobs -p | tr '\n' ' ')"
+
+# Wait for all background processes
+wait
