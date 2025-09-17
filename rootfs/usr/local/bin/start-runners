@@ -3,7 +3,7 @@
 set -e
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Function to __log messages with timestamp
-__log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1"; }
+__log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >"$RUNNERS_LOG_DIR/runners" 2>&1; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Function to cleanup child processes on exit
 __cleanup() {
@@ -74,8 +74,15 @@ for i in $(seq 1 $RUNNERS_COUNT); do
 done
 unset i
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-__log "All $RUNNERS_COUNT runners started successfully"
-__log "Process IDs: $(jobs -p | tr '\n' ' ')"
+RUNNERS_ID="$(jobs -p | tr '\n' ' ')"
+if [ -n "$RUNNERS_ID" ]; then
+	__log "All $RUNNERS_COUNT runners started successfully"
+	__log "Process IDs: $RUNNERS_ID"
+	printf 'All %s runners started successfully: %s\n' "$RUNNERS_COUNT" "$RUNNERS_ID"
+else
+	__log "The runners have failed to start"
+	printf '%s\n' "The runners have failed to start"
+fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Wait for all background processes
 wait
