@@ -362,7 +362,7 @@ __post_execute() {
 	local postMessageST="Running post commands for $SERVICE_NAME"   # message to show at start
 	local postMessageEnd="Finished post commands for $SERVICE_NAME" # message to show at completion
 	local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}"  # set hostname
-	export SERVER_ADDRESS="$INSTANCE_HOSTNAME" SERVER_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}" RUNNERS_ENABLE="${RUNNERS_START:-5}" RUNNER_LABELS
+	export SERVER_ADDRESS="$RUNNER_IP_ADDRESS:$GITEA_PORT" SERVER_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}" RUNNERS_ENABLE="${RUNNERS_START:-5}" RUNNER_LABELS
 	# wait
 	sleep $waitTime
 	# execute commands
