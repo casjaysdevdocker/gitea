@@ -52,10 +52,10 @@ __start_runner() {
 
 	# Create runner directory
 	mkdir -p "$runner_dir"
+	[ -d "$runner_dir" ] && cd "$runner_dir" || return 1
 
 	if [ ! -f "$runner_dir/.runner" ]; then
 		__log "Registering runner: $runner_name (ID: $runner_id)"
-		[ -d "$runner_dir" ] && cd "$runner_dir" || return 1
 		# Register the runner (this creates the .runner file)
 		act_runner register --instance "$SERVER_ADDRESS" --token "$SERVER_TOKEN" --name "$runner_name" --labels "$RUNNER_LABELS" --no-interactive
 		if [ $? -ne 0 ]; then
