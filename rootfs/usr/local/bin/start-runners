@@ -52,19 +52,20 @@ __start_runner() {
 
 	# Create runner directory
 	mkdir -p "$runner_dir"
-	cd "$runner_dir"
-	__log "Starting runner: $runner_name (ID: $runner_id)"
-	# Register the runner (this creates the .runner file)
-	__log "Registering runner: $runner_name"
-	act_runner register --instance "$SERVER_ADDRESS" --token "$SERVER_TOKEN" --name "$runner_name" --labels "$RUNNER_LABELS" --no-interactive
 
-	if [ $? -ne 0 ]; then
-		__log "ERROR: Failed to register runner $runner_name"
-		return 1
+	if [ ! -f "$runner_dir/.runner" ]; then
+		__log "Registering runner: $runner_name (ID: $runner_id)"
+		[ -d "$runner_dir" ] && cd "$runner_dir" || return 1
+		# Register the runner (this creates the .runner file)
+		act_runner register --instance "$SERVER_ADDRESS" --token "$SERVER_TOKEN" --name "$runner_name" --labels "$RUNNER_LABELS" --no-interactive
+		if [ $? -ne 0 ]; then
+			__log "ERROR: Failed to register runner $runner_name"
+			return 1
+		fi
 	fi
 	# Start the daemon
 	__log "Starting daemon for runner: $runner_name"
-	exec act_runner daemon --config .runner
+	exec act_runner daemon --config "$runner_dir/.runner"
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Start runners in background
