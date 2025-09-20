@@ -36,6 +36,18 @@ export PATH="/usr/local/etc/docker/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/s
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 SCRIPT_FILE="$0"
 SERVICE_NAME="act_runner"
+# Function to exit appropriately based on context
+__script_exit() {
+	local exit_code="${1:-0}"
+	if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
+		# Script is being sourced - use return
+		return "$exit_code"
+	else
+		# Script is being executed - use exit
+		exit "$exit_code"
+	fi
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 SCRIPT_NAME="$(basename "$SCRIPT_FILE" 2>/dev/null)"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # import the functions file
@@ -47,8 +59,6 @@ fi
 for set_env in "/root/env.sh" "/usr/local/etc/docker/env"/*.sh "/config/env"/*.sh; do
 	[ -f "$set_env" ] && . "$set_env"
 done
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom functions
 __gen_auth_token() {
@@ -263,7 +273,7 @@ __run_pre_execute_checks() {
 	if [ $exitStatus -ne 0 ]; then
 		echo "The pre-execution check has failed" >&2
 		[ -f "$SERVICE_PID_FILE" ] && rm -Rf "$SERVICE_PID_FILE"
-		exit 1
+		__script_exit 1
 	fi
 	return $exitStatus
 }
@@ -447,7 +457,7 @@ __run_start_script() {
 		__post_execute 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt"
 		retVal=$?
 		echo "Initializing $SCRIPT_NAME has completed"
-		exit $retVal
+		__script_exit $retVal
 	else
 		# ensure the command exists
 		if [ ! -x "$cmd" ]; then
@@ -482,7 +492,7 @@ __run_start_script() {
 				if [ ! -f "$START_SCRIPT" ]; then
 					cat <<EOF >"$START_SCRIPT"
 #!/usr/bin/env bash
-trap 'exitCode=\$?;[ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ] && rm -Rf "\$SERVICE_PID_FILE";exit \$exitCode' EXIT
+trap 'exitCode=\$?;if [ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ]; then rm -Rf "\$SERVICE_PID_FILE"; fi; exit \$exitCode' EXIT
 #
 set -Eeo pipefail
 # Setting up $cmd to run as ${SERVICE_USER:-root} with env
@@ -504,7 +514,7 @@ EOF
 					execute_command="$(__trim "$su_exec $cmd_exec")"
 					cat <<EOF >"$START_SCRIPT"
 #!/usr/bin/env bash
-trap 'exitCode=\$?;[ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ] && rm -Rf "\$SERVICE_PID_FILE";exit \$exitCode' EXIT
+trap 'exitCode=\$?;if [ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ]; then rm -Rf "\$SERVICE_PID_FILE"; fi; exit \$exitCode' EXIT
 #
 set -Eeo pipefail
 # Setting up $cmd to run as ${SERVICE_USER:-root}
@@ -662,4 +672,4 @@ fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __banner "Initializing of $SERVICE_NAME has completed with statusCode: $SERVICE_EXIT_CODE" | tee -p -a "/data/logs/entrypoint.log" "$LOG_DIR/init.txt"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-exit $SERVICE_EXIT_CODE
+__script_exit $SERVICE_EXIT_CODE

@@ -36,26 +36,36 @@ export PATH="/usr/local/etc/docker/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/s
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 SCRIPT_FILE="$0"
 SERVICE_NAME="gitea"
+# Function to exit appropriately based on context
+__script_exit() {
+	local exit_code="${1:-0}"
+	if [ "${BASH_SOURCE[0]}" != "${0}" ]; then
+		# Script is being sourced - use return
+		return "$exit_code"
+	else
+		# Script is being executed - use exit
+		exit "$exit_code"
+	fi
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 SCRIPT_NAME="$(basename "$SCRIPT_FILE" 2>/dev/null)"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # exit if __start_init_scripts function hasn't been Initialized
 if [ ! -f "/run/__start_init_scripts.pid" ]; then
-  echo "__start_init_scripts function hasn't been Initialized" >&2
-  SERVICE_IS_RUNNING="no"
-  exit 1
+	echo "__start_init_scripts function hasn't been Initialized" >&2
+	SERVICE_IS_RUNNING="no"
+	__script_exit 1
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # import the functions file
 if [ -f "/usr/local/etc/docker/functions/entrypoint.sh" ]; then
-  . "/usr/local/etc/docker/functions/entrypoint.sh"
+	. "/usr/local/etc/docker/functions/entrypoint.sh"
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # import variables
 for set_env in "/root/env.sh" "/usr/local/etc/docker/env"/*.sh "/config/env"/*.sh; do
-  [ -f "$set_env" ] && . "$set_env"
+	[ -f "$set_env" ] && . "$set_env"
 done
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-printf '%s\n' "# - - - Initializing $SERVICE_NAME - - - #"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom functions
 
@@ -192,184 +202,184 @@ CMD_ENV=""
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom prerun functions - IE setup WWW_ROOT_DIR
 __execute_prerun() {
-  # Setup /config directories
-  __init_config_etc
+	# Setup /config directories
+	__init_config_etc
 
-  # Define other actions/commands
+	# Define other actions/commands
 
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Run any pre-execution checks
 __run_pre_execute_checks() {
-  # Set variables
-  local exitStatus=0
-  local pre_execute_checks_MessageST="Running preexecute check for $SERVICE_NAME"   # message to show at start
-  local pre_execute_checks_MessageEnd="Finished preexecute check for $SERVICE_NAME" # message to show at completion
-  __banner "$pre_execute_checks_MessageST"
-  # Put command to execute in parentheses
-  {
-    true
-  }
-  exitStatus=$?
-  __banner "$pre_execute_checks_MessageEnd: Status $exitStatus"
+	# Set variables
+	local exitStatus=0
+	local pre_execute_checks_MessageST="Running preexecute check for $SERVICE_NAME"   # message to show at start
+	local pre_execute_checks_MessageEnd="Finished preexecute check for $SERVICE_NAME" # message to show at completion
+	__banner "$pre_execute_checks_MessageST"
+	# Put command to execute in parentheses
+	{
+		true
+	}
+	exitStatus=$?
+	__banner "$pre_execute_checks_MessageEnd: Status $exitStatus"
 
-  # show exit message
-  if [ $exitStatus -ne 0 ]; then
-    echo "The pre-execution check has failed" >&2
-    [ -f "$SERVICE_PID_FILE" ] && rm -Rf "$SERVICE_PID_FILE"
-    exit 1
-  fi
-  return $exitStatus
+	# show exit message
+	if [ $exitStatus -ne 0 ]; then
+		echo "The pre-execution check has failed" >&2
+		[ -f "$SERVICE_PID_FILE" ] && rm -Rf "$SERVICE_PID_FILE"
+		__script_exit 1
+	fi
+	return $exitStatus
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # use this function to update config files - IE: change port
 __update_conf_files() {
-  local exitCode=0                                               # default exit code
-  local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}" # set hostname
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # CD into temp to bybass any permission errors
-  cd /tmp || false # lets keep shellcheck happy by adding false
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # delete files
-  #__rm ""
+	local exitCode=0                                               # default exit code
+	local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}" # set hostname
+	# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	# CD into temp to bybass any permission errors
+	cd /tmp || false # lets keep shellcheck happy by adding false
+	# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	# delete files
+	#__rm ""
 
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # custom commands
-  __is_dir_empty "/config/ssh" && COPY_SSHD_CONF="yes"
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # replace variables
-  __replace "REPLACE_SSH_CONF_DIR" "/config/ssh" "/etc/ssh/sshd_config"
-  __replace "REPLACE_SSH_DATA_DIR" "$DATA_DIR/ssh" "/etc/ssh/sshd_config"
-  __replace "REPLACE_RANDOM_COOKIE_KEY" "$GITEA_RANDOM_COOKIE_KEY" "$CONF_DIR/app.ini"
-  # replace variables recursively
-  #  __find_replace "" "" "$CONF_DIR"
+	# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	# custom commands
+	__is_dir_empty "/config/ssh" && COPY_SSHD_CONF="yes"
+	# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	# replace variables
+	__replace "REPLACE_SSH_CONF_DIR" "/config/ssh" "/etc/ssh/sshd_config"
+	__replace "REPLACE_SSH_DATA_DIR" "$DATA_DIR/ssh" "/etc/ssh/sshd_config"
+	__replace "REPLACE_RANDOM_COOKIE_KEY" "$GITEA_RANDOM_COOKIE_KEY" "$CONF_DIR/app.ini"
+	# replace variables recursively
+	#  __find_replace "" "" "$CONF_DIR"
 
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # define actions
-  [ -d " /config/ssh" ] || mkdir -p "/config/ssh"
-  [ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
-  [ "$COPY_SSHD_CONF" = "yes" ] && copy "/etc/ssh/sshd_config" "/config/ssh/"
-  if [ ! -f "/config/ssh/ssh_host_ed25519_key" ]; then
-    echo "Generating /config/ssh/ssh_host_ed25519_key..."
-    ssh-keygen -t ed25519 -f /config/ssh/ssh_host_ed25519_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_ed25519_key" "$DATA_DIR/ssh/ssh_host_ed25519_key"
-  fi
-  if [ ! -f "/config/ssh/ssh_host_rsa_key" ]; then
-    echo "Generating /config/ssh/ssh_host_rsa_key..."
-    ssh-keygen -t rsa -b 3072 -f /config/ssh/ssh_host_rsa_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_rsa_key" "$DATA_DIR/ssh/ssh_host_rsa_key"
-  fi
-  if [ ! -f "/config/ssh/ssh_host_ecdsa_key" ]; then
-    echo "Generating /config/ssh/ssh_host_ecdsa_key..."
-    ssh-keygen -t ecdsa -b 256 -f /config/ssh/ssh_host_ecdsa_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_ecdsa_key" "$DATA_DIR/ssh/ssh_host_ecdsa_key"
-  fi
-  chmod 0700 "$DATA_DIR/ssh" /config/ssh
-  chmod 0600 "$DATA_DIR/ssh"/* /config/ssh/*
-  [ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
-  [ -d "$CONF_DIR/custom" ] || mkdir -p "$CONF_DIR/custom"
-  if [ -n "$CONF_DIR" ] && [ -f "$CONF_DIR/app.ini" ]; then
-    sed -i "s|REPLACE_SQL_NAME|$GITEA_SQL_NAME|g" "$CONF_DIR/app.ini"
-    sed -i "s|REPLACE_SQL_USER|$GITEA_SQL_USER|g" "$CONF_DIR/app.ini"
-    sed -i "s|REPLACE_SQL_PASS|$GITEA_SQL_PASS|g" "$CONF_DIR/app.ini"
-    sed -i "s|REPLACE_SQL_TYPE|${GITEA_SQL_TYPE}|g" "$CONF_DIR/app.ini"
-    sed -i "s|REPLACE_SQL_HOST|$GITEA_SQL_DB_HOST|g" "$CONF_DIR/app.ini"
-    sed -i "s|REPLACE_DATABASE_DIR|$DATABASE_DIR|g" "$CONF_DIR/app.ini"
-    sed -i "s|REPLACE_SECRET_KEY|$GITEA_SECRET_KEY|g" "$CONF_DIR/app.ini"
-    sed -i "s|REPLACE_GITEA_EMAIL_CONFIRM|$GITEA_EMAIL_CONFIRM|g" "$CONF_DIR/app.ini"
-    sed -i "s|REPLACE_GITEA_INTERNAL_TOKEN|$GITEA_INTERNAL_TOKEN|g" "$CONF_DIR/app.ini"
-    sed -i "s|REPLACE_GITEA_LFS_JWT_SECRET|$GITEA_LFS_JWT_SECRET|g" "$CONF_DIR/app.ini"
-  fi
-  if [ -n "$DATA_DIR" ] && [ -d "$DATA_DIR" ]; then
-    find "$DATA_DIR" -type d -exec chmod 0777 {} \;
-    chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATA_DIR" 2>/dev/null
-  fi
-  [ -f "$DATABASE_DIR/gitea.db" ] && chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATABASE_DIR/gitea.db" 2>/dev/null
-  # exit function
-  return $exitCode
+	# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	# define actions
+	[ -d " /config/ssh" ] || mkdir -p "/config/ssh"
+	[ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
+	[ "$COPY_SSHD_CONF" = "yes" ] && copy "/etc/ssh/sshd_config" "/config/ssh/"
+	if [ ! -f "/config/ssh/ssh_host_ed25519_key" ]; then
+		echo "Generating /config/ssh/ssh_host_ed25519_key..."
+		ssh-keygen -t ed25519 -f /config/ssh/ssh_host_ed25519_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_ed25519_key" "$DATA_DIR/ssh/ssh_host_ed25519_key"
+	fi
+	if [ ! -f "/config/ssh/ssh_host_rsa_key" ]; then
+		echo "Generating /config/ssh/ssh_host_rsa_key..."
+		ssh-keygen -t rsa -b 3072 -f /config/ssh/ssh_host_rsa_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_rsa_key" "$DATA_DIR/ssh/ssh_host_rsa_key"
+	fi
+	if [ ! -f "/config/ssh/ssh_host_ecdsa_key" ]; then
+		echo "Generating /config/ssh/ssh_host_ecdsa_key..."
+		ssh-keygen -t ecdsa -b 256 -f /config/ssh/ssh_host_ecdsa_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_ecdsa_key" "$DATA_DIR/ssh/ssh_host_ecdsa_key"
+	fi
+	chmod 0700 "$DATA_DIR/ssh" /config/ssh
+	chmod 0600 "$DATA_DIR/ssh"/* /config/ssh/*
+	[ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
+	[ -d "$CONF_DIR/custom" ] || mkdir -p "$CONF_DIR/custom"
+	if [ -n "$CONF_DIR" ] && [ -f "$CONF_DIR/app.ini" ]; then
+		sed -i "s|REPLACE_SQL_NAME|$GITEA_SQL_NAME|g" "$CONF_DIR/app.ini"
+		sed -i "s|REPLACE_SQL_USER|$GITEA_SQL_USER|g" "$CONF_DIR/app.ini"
+		sed -i "s|REPLACE_SQL_PASS|$GITEA_SQL_PASS|g" "$CONF_DIR/app.ini"
+		sed -i "s|REPLACE_SQL_TYPE|${GITEA_SQL_TYPE}|g" "$CONF_DIR/app.ini"
+		sed -i "s|REPLACE_SQL_HOST|$GITEA_SQL_DB_HOST|g" "$CONF_DIR/app.ini"
+		sed -i "s|REPLACE_DATABASE_DIR|$DATABASE_DIR|g" "$CONF_DIR/app.ini"
+		sed -i "s|REPLACE_SECRET_KEY|$GITEA_SECRET_KEY|g" "$CONF_DIR/app.ini"
+		sed -i "s|REPLACE_GITEA_EMAIL_CONFIRM|$GITEA_EMAIL_CONFIRM|g" "$CONF_DIR/app.ini"
+		sed -i "s|REPLACE_GITEA_INTERNAL_TOKEN|$GITEA_INTERNAL_TOKEN|g" "$CONF_DIR/app.ini"
+		sed -i "s|REPLACE_GITEA_LFS_JWT_SECRET|$GITEA_LFS_JWT_SECRET|g" "$CONF_DIR/app.ini"
+	fi
+	if [ -n "$DATA_DIR" ] && [ -d "$DATA_DIR" ]; then
+		find "$DATA_DIR" -type d -exec chmod 0777 {} \;
+		chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATA_DIR" 2>/dev/null
+	fi
+	[ -f "$DATABASE_DIR/gitea.db" ] && chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATABASE_DIR/gitea.db" 2>/dev/null
+	# exit function
+	return $exitCode
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # function to run before executing
 __pre_execute() {
-  local exitCode=0                                               # default exit code
-  local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}" # set hostname
+	local exitCode=0                                               # default exit code
+	local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}" # set hostname
 
-  # define commands
+	# define commands
 
-  # execute if directories is empty
-  __is_dir_empty "" && true
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # Set permissions
-  __fix_permissions "$SERVICE_USER" "$SERVICE_GROUP"
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # Copy /config to /etc
-  for config_2_etc in $CONF_DIR $ADDITIONAL_CONFIG_DIRS; do
-    __initialize_system_etc "$config_2_etc" 2>/dev/stderr | tee -p -a "$LOG_DIR/init.txt"
-  done
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # Replace variables
-  HOSTNAME="$sysname" __initialize_replace_variables "$ETC_DIR" "$CONF_DIR" "$WWW_ROOT_DIR"
-  # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-  # unset unneeded variables
-  unset filesperms filename config_2_etc change_user change_user ADDITIONAL_CONFIG_DIRS application_files filedirs
-  # Lets wait a few seconds before continuing
-  sleep 5
-  return $exitCode
+	# execute if directories is empty
+	__is_dir_empty "" && true
+	# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	# Set permissions
+	__fix_permissions "$SERVICE_USER" "$SERVICE_GROUP"
+	# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	# Copy /config to /etc
+	for config_2_etc in $CONF_DIR $ADDITIONAL_CONFIG_DIRS; do
+		__initialize_system_etc "$config_2_etc" 2>/dev/stderr | tee -p -a "$LOG_DIR/init.txt"
+	done
+	# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	# Replace variables
+	HOSTNAME="$sysname" __initialize_replace_variables "$ETC_DIR" "$CONF_DIR" "$WWW_ROOT_DIR"
+	# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+	# unset unneeded variables
+	unset filesperms filename config_2_etc change_user change_user ADDITIONAL_CONFIG_DIRS application_files filedirs
+	# Lets wait a few seconds before continuing
+	sleep 5
+	return $exitCode
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # function to run after executing
 __post_execute() {
-  local pid=""                                                    # init pid var
-  local retVal=0                                                  # set default exit code
-  local waitTime=60                                               # how long to wait before executing
-  local postMessageST="Running post commands for $SERVICE_NAME"   # message to show at start
-  local postMessageEnd="Finished post commands for $SERVICE_NAME" # message to show at completion
-  local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}"  # set hostname
+	local pid=""                                                    # init pid var
+	local retVal=0                                                  # set default exit code
+	local waitTime=60                                               # how long to wait before executing
+	local postMessageST="Running post commands for $SERVICE_NAME"   # message to show at start
+	local postMessageEnd="Finished post commands for $SERVICE_NAME" # message to show at completion
+	local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}"  # set hostname
 
-  # wait
-  sleep $waitTime
-  # execute commands
-  (
-    # show message
-    __banner "$postMessageST"
-    # commands to execute
-    true
-    # show exit message
-    __banner "$postMessageEnd: Status $retVal"
-  ) 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" &
-  pid=$!
-  # set exitCode
-  ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && retVal=0 || retVal=10
-  return $retVal
+	# wait
+	sleep $waitTime
+	# execute commands
+	(
+		# show message
+		__banner "$postMessageST"
+		# commands to execute
+		true
+		# show exit message
+		__banner "$postMessageEnd: Status $retVal"
+	) 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" &
+	pid=$!
+	# set exitCode
+	ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$" && retVal=0 || retVal=10
+	return $retVal
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # use this function to update config files - IE: change port
 __pre_message() {
-  local exitCode=0
-  if [ -n "$user_name" ] || [ -n "$user_pass" ] || [ -n "$root_user_name" ] || [ -n "$root_user_pass" ]; then
-    __banner "User info"
-    [ -n "$user_name" ] && __printf_space "40" "username:" "$user_name" && echo "$user_name" >"${USER_FILE_PREFIX}/${SERVICE_NAME}_name"
-    [ -n "$user_pass" ] && __printf_space "40" "password:" "saved to ${USER_FILE_PREFIX}/${SERVICE_NAME}_pass" && echo "$user_pass" >"${USER_FILE_PREFIX}/${SERVICE_NAME}_pass"
-    [ -n "$root_user_name" ] && __printf_space "40" "root username:" "$root_user_name" && echo "$root_user_name" >"${ROOT_FILE_PREFIX}/${SERVICE_NAME}_name"
-    [ -n "$root_user_pass" ] && __printf_space "40" "root password:" "saved to ${ROOT_FILE_PREFIX}/${SERVICE_NAME}_pass" && echo "$root_user_pass" >"${ROOT_FILE_PREFIX}/${SERVICE_NAME}_pass"
-    __banner ""
-  fi
-  [ -n "$PRE_EXEC_MESSAGE" ] && eval echo "$PRE_EXEC_MESSAGE"
-  # execute commands
+	local exitCode=0
+	if [ -n "$user_name" ] || [ -n "$user_pass" ] || [ -n "$root_user_name" ] || [ -n "$root_user_pass" ]; then
+		__banner "User info"
+		[ -n "$user_name" ] && __printf_space "40" "username:" "$user_name" && echo "$user_name" >"${USER_FILE_PREFIX}/${SERVICE_NAME}_name"
+		[ -n "$user_pass" ] && __printf_space "40" "password:" "saved to ${USER_FILE_PREFIX}/${SERVICE_NAME}_pass" && echo "$user_pass" >"${USER_FILE_PREFIX}/${SERVICE_NAME}_pass"
+		[ -n "$root_user_name" ] && __printf_space "40" "root username:" "$root_user_name" && echo "$root_user_name" >"${ROOT_FILE_PREFIX}/${SERVICE_NAME}_name"
+		[ -n "$root_user_pass" ] && __printf_space "40" "root password:" "saved to ${ROOT_FILE_PREFIX}/${SERVICE_NAME}_pass" && echo "$root_user_pass" >"${ROOT_FILE_PREFIX}/${SERVICE_NAME}_pass"
+		__banner ""
+	fi
+	[ -n "$PRE_EXEC_MESSAGE" ] && eval echo "$PRE_EXEC_MESSAGE"
+	# execute commands
 
-  # set exitCode
-  return $exitCode
+	# set exitCode
+	return $exitCode
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # use this function to setup ssl support
 __update_ssl_conf() {
-  local exitCode=0
-  local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}" # set hostname
-  # execute commands
+	local exitCode=0
+	local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}" # set hostname
+	# execute commands
 
-  # set exitCode
-  return $exitCode
+	# set exitCode
+	return $exitCode
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __create_service_env() {
-  cat <<EOF | tee -p "/config/env/${SERVICE_NAME:-$SCRIPT_NAME}.sh" &>/dev/null
+	cat <<EOF | tee -p "/config/env/${SERVICE_NAME:-$SCRIPT_NAME}.sh" &>/dev/null
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # root/admin user info [password/random]
 #ENV_ROOT_USER_NAME="${ENV_ROOT_USER_NAME:-$GITEA_ROOT_USER_NAME}"   # root user name
@@ -384,67 +394,67 @@ __create_service_env() {
 #user_pass="${ENV_USER_PASS:-$user_pass}"                                             # normal user password
 
 EOF
-  __file_exists_with_content "/config/env/${SERVICE_NAME:-$SCRIPT_NAME}.sh" || return 1
+	__file_exists_with_content "/config/env/${SERVICE_NAME:-$SCRIPT_NAME}.sh" || return 1
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # script to start server
 __run_start_script() {
-  local runExitCode=0
-  local workdir="$(eval echo "${WORK_DIR:-}")"                   # expand variables
-  local cmd="$(eval echo "${EXEC_CMD_BIN:-}")"                   # expand variables
-  local args="$(eval echo "${EXEC_CMD_ARGS:-}")"                 # expand variables
-  local name="$(eval echo "${EXEC_CMD_NAME:-}")"                 # expand variables
-  local pre="$(eval echo "${EXEC_PRE_SCRIPT:-}")"                # expand variables
-  local extra_env="$(eval echo "${CMD_ENV//,/ }")"               # expand variables
-  local lc_type="$(eval echo "${LANG:-${LC_ALL:-$LC_CTYPE}}")"   # expand variables
-  local home="$(eval echo "${workdir//\/root/\/tmp\/docker}")"   # expand variables
-  local path="$(eval echo "$PATH")"                              # expand variables
-  local message="$(eval echo "")"                                # expand variables
-  local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}" # set hostname
-  [ -f "$CONF_DIR/$SERVICE_NAME.exec_cmd.sh" ] && . "$CONF_DIR/$SERVICE_NAME.exec_cmd.sh"
-  #
-  __run_pre_execute_checks 2>/dev/stderr | tee -a -p "/data/logs/entrypoint.log" "$LOG_DIR/init.txt" || return 20
-  #
-  if [ -z "$cmd" ]; then
-    __post_execute 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt"
-    retVal=$?
-    echo "Initializing $SCRIPT_NAME has completed"
-    exit $retVal
-  else
-    # ensure the command exists
-    if [ ! -x "$cmd" ]; then
-      echo "$name is not a valid executable"
-      return 2
-    fi
-    # check and exit if already running
-    if __proc_check "$name" || __proc_check "$cmd"; then
-      echo "$name is already running" >&2
-      return 0
-    else
-      # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-      # show message if env exists
-      if [ -n "$cmd" ]; then
-        [ -n "$SERVICE_USER" ] && echo "Setting up $cmd to run as $SERVICE_USER" || SERVICE_USER="root"
-        [ -n "$SERVICE_PORT" ] && echo "$name will be running on port $SERVICE_PORT" || SERVICE_PORT=""
-      fi
-      if [ -n "$pre" ] && [ -n "$(command -v "$pre" 2>/dev/null)" ]; then
-        export cmd_exec="$pre $cmd $args"
-        message="Starting service: $name $args through $pre"
-      else
-        export cmd_exec="$cmd $args"
-        message="Starting service: $name $args"
-      fi
-      [ -n "$su_exec" ] && echo "using $su_exec" | tee -a -p "$LOG_DIR/init.txt"
-      echo "$message" | tee -a -p "$LOG_DIR/init.txt"
-      su_cmd touch "$SERVICE_PID_FILE"
-      __post_execute 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" &
-      if [ "$RESET_ENV" = "yes" ]; then
-        env_command="$(echo "env -i HOME=\"$home\" LC_CTYPE=\"$lc_type\" PATH=\"$path\" HOSTNAME=\"$sysname\" USER=\"${SERVICE_USER:-$RUNAS_USER}\" $extra_env")"
-        execute_command="$(__trim "$su_exec $env_command $cmd_exec")"
-        if [ ! -f "$START_SCRIPT" ]; then
-          cat <<EOF >"$START_SCRIPT"
+	local runExitCode=0
+	local workdir="$(eval echo "${WORK_DIR:-}")"                   # expand variables
+	local cmd="$(eval echo "${EXEC_CMD_BIN:-}")"                   # expand variables
+	local args="$(eval echo "${EXEC_CMD_ARGS:-}")"                 # expand variables
+	local name="$(eval echo "${EXEC_CMD_NAME:-}")"                 # expand variables
+	local pre="$(eval echo "${EXEC_PRE_SCRIPT:-}")"                # expand variables
+	local extra_env="$(eval echo "${CMD_ENV//,/ }")"               # expand variables
+	local lc_type="$(eval echo "${LANG:-${LC_ALL:-$LC_CTYPE}}")"   # expand variables
+	local home="$(eval echo "${workdir//\/root/\/tmp\/docker}")"   # expand variables
+	local path="$(eval echo "$PATH")"                              # expand variables
+	local message="$(eval echo "")"                                # expand variables
+	local sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}" # set hostname
+	[ -f "$CONF_DIR/$SERVICE_NAME.exec_cmd.sh" ] && . "$CONF_DIR/$SERVICE_NAME.exec_cmd.sh"
+	#
+	__run_pre_execute_checks 2>/dev/stderr | tee -a -p "/data/logs/entrypoint.log" "$LOG_DIR/init.txt" || return 20
+	#
+	if [ -z "$cmd" ]; then
+		__post_execute 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt"
+		retVal=$?
+		echo "Initializing $SCRIPT_NAME has completed"
+		__script_exit $retVal
+	else
+		# ensure the command exists
+		if [ ! -x "$cmd" ]; then
+			echo "$name is not a valid executable"
+			return 2
+		fi
+		# check and exit if already running
+		if __proc_check "$name" || __proc_check "$cmd"; then
+			echo "$name is already running" >&2
+			return 0
+		else
+			# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+			# show message if env exists
+			if [ -n "$cmd" ]; then
+				[ -n "$SERVICE_USER" ] && echo "Setting up $cmd to run as $SERVICE_USER" || SERVICE_USER="root"
+				[ -n "$SERVICE_PORT" ] && echo "$name will be running on port $SERVICE_PORT" || SERVICE_PORT=""
+			fi
+			if [ -n "$pre" ] && [ -n "$(command -v "$pre" 2>/dev/null)" ]; then
+				export cmd_exec="$pre $cmd $args"
+				message="Starting service: $name $args through $pre"
+			else
+				export cmd_exec="$cmd $args"
+				message="Starting service: $name $args"
+			fi
+			[ -n "$su_exec" ] && echo "using $su_exec" | tee -a -p "$LOG_DIR/init.txt"
+			echo "$message" | tee -a -p "$LOG_DIR/init.txt"
+			su_cmd touch "$SERVICE_PID_FILE"
+			__post_execute 2>"/dev/stderr" | tee -p -a "$LOG_DIR/init.txt" &
+			if [ "$RESET_ENV" = "yes" ]; then
+				env_command="$(echo "env -i HOME=\"$home\" LC_CTYPE=\"$lc_type\" PATH=\"$path\" HOSTNAME=\"$sysname\" USER=\"${SERVICE_USER:-$RUNAS_USER}\" $extra_env")"
+				execute_command="$(__trim "$su_exec $env_command $cmd_exec")"
+				if [ ! -f "$START_SCRIPT" ]; then
+					cat <<EOF >"$START_SCRIPT"
 #!/usr/bin/env bash
-trap 'exitCode=\$?;[ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ] && rm -Rf "\$SERVICE_PID_FILE";exit \$exitCode' EXIT
+trap 'exitCode=\$?;if [ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ]; then rm -Rf "\$SERVICE_PID_FILE"; fi; exit \$exitCode' EXIT
 #
 set -Eeo pipefail
 # Setting up $cmd to run as ${SERVICE_USER:-root} with env
@@ -460,13 +470,13 @@ checkPID="\$(ps ax | awk '{print \$1}' | grep -v grep | grep "\$execPid$" || fal
 exit \$retVal
 
 EOF
-        fi
-      else
-        if [ ! -f "$START_SCRIPT" ]; then
-          execute_command="$(__trim "$su_exec $cmd_exec")"
-          cat <<EOF >"$START_SCRIPT"
+				fi
+			else
+				if [ ! -f "$START_SCRIPT" ]; then
+					execute_command="$(__trim "$su_exec $cmd_exec")"
+					cat <<EOF >"$START_SCRIPT"
 #!/usr/bin/env bash
-trap 'exitCode=\$?;[ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ] && rm -Rf "\$SERVICE_PID_FILE";exit \$exitCode' EXIT
+trap 'exitCode=\$?;if [ \$exitCode -ne 0 ] && [ -f "\$SERVICE_PID_FILE" ]; then rm -Rf "\$SERVICE_PID_FILE"; fi; exit \$exitCode' EXIT
 #
 set -Eeo pipefail
 # Setting up $cmd to run as ${SERVICE_USER:-root}
@@ -482,34 +492,34 @@ checkPID="\$(ps ax | awk '{print \$1}' | grep -v grep | grep "\$execPid$" || fal
 exit \$retVal
 
 EOF
-        fi
-      fi
-    fi
-    [ -x "$START_SCRIPT" ] || chmod 755 -Rf "$START_SCRIPT"
-    [ "$CONTAINER_INIT" = "yes" ] || eval sh -c "$START_SCRIPT"
-    runExitCode=$?
-    return $runExitCode
-  fi
+				fi
+			fi
+		fi
+		[ -x "$START_SCRIPT" ] || chmod 755 -Rf "$START_SCRIPT"
+		[ "$CONTAINER_INIT" = "yes" ] || eval sh -c "$START_SCRIPT"
+		runExitCode=$?
+		return $runExitCode
+	fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # username and password actions
 __run_secure_function() {
-  if [ -n "$user_name" ] || [ -n "$user_pass" ]; then
-    for filesperms in "${USER_FILE_PREFIX}"/*; do
-      if [ -e "$filesperms" ]; then
-        chmod -Rf 600 "$filesperms"
-        chown -Rf $SERVICE_USER:$SERVICE_USER "$filesperms" 2>/dev/null
-      fi
-    done 2>/dev/null | tee -p -a "$LOG_DIR/init.txt"
-  fi
-  if [ -n "$root_user_name" ] || [ -n "$root_user_pass" ]; then
-    for filesperms in "${ROOT_FILE_PREFIX}"/*; do
-      if [ -e "$filesperms" ]; then
-        chmod -Rf 600 "$filesperms"
-        chown -Rf $SERVICE_USER:$SERVICE_USER "$filesperms" 2>/dev/null
-      fi
-    done 2>/dev/null | tee -p -a "$LOG_DIR/init.txt"
-  fi
+	if [ -n "$user_name" ] || [ -n "$user_pass" ]; then
+		for filesperms in "${USER_FILE_PREFIX}"/*; do
+			if [ -e "$filesperms" ]; then
+				chmod -Rf 600 "$filesperms"
+				chown -Rf $SERVICE_USER:$SERVICE_USER "$filesperms" 2>/dev/null
+			fi
+		done 2>/dev/null | tee -p -a "$LOG_DIR/init.txt"
+	fi
+	if [ -n "$root_user_name" ] || [ -n "$root_user_pass" ]; then
+		for filesperms in "${ROOT_FILE_PREFIX}"/*; do
+			if [ -e "$filesperms" ]; then
+				chmod -Rf 600 "$filesperms"
+				chown -Rf $SERVICE_USER:$SERVICE_USER "$filesperms" 2>/dev/null
+			fi
+		done 2>/dev/null | tee -p -a "$LOG_DIR/init.txt"
+	fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Allow ENV_ variable - Import env file
@@ -537,12 +547,12 @@ __check_service "$1"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Database env
 if [ "$IS_DATABASE_SERVICE" = "yes" ] || [ "$USES_DATABASE_SERVICE" = "yes" ]; then
-  RESET_ENV="no"
-  DATABASE_CREATE="${ENV_DATABASE_CREATE:-$DATABASE_CREATE}"
-  DATABASE_USER="${ENV_DATABASE_USER:-${DATABASE_USER:-$user_name}}"
-  DATABASE_PASSWORD="${ENV_DATABASE_PASSWORD:-${DATABASE_PASSWORD:-$user_pass}}"
-  DATABASE_ROOT_USER="${ENV_DATABASE_ROOT_USER:-${DATABASE_ROOT_USER:-$root_user_name}}"
-  DATABASE_ROOT_PASSWORD="${ENV_DATABASE_ROOT_PASSWORD:-${DATABASE_ROOT_PASSWORD:-$root_user_pass}}"
+	RESET_ENV="no"
+	DATABASE_CREATE="${ENV_DATABASE_CREATE:-$DATABASE_CREATE}"
+	DATABASE_USER="${ENV_DATABASE_USER:-${DATABASE_USER:-$user_name}}"
+	DATABASE_PASSWORD="${ENV_DATABASE_PASSWORD:-${DATABASE_PASSWORD:-$user_pass}}"
+	DATABASE_ROOT_USER="${ENV_DATABASE_ROOT_USER:-${DATABASE_ROOT_USER:-$root_user_name}}"
+	DATABASE_ROOT_PASSWORD="${ENV_DATABASE_ROOT_PASSWORD:-${DATABASE_ROOT_PASSWORD:-$root_user_pass}}"
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Allow per init script usernames and passwords
@@ -610,18 +620,18 @@ __pre_execute
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __run_start_script 2>>/dev/stderr | tee -p -a "/data/logs/entrypoint.log" && errorCode=0 || errorCode=10
 if [ -n "$EXEC_CMD_BIN" ]; then
-  if [ "$errorCode" -ne 0 ]; then
-    echo "Failed to execute: ${cmd_exec:-$EXEC_CMD_BIN $EXEC_CMD_ARGS}" | tee -p -a "/data/logs/entrypoint.log" "$LOG_DIR/init.txt"
-    rm -Rf "$SERVICE_PID_FILE"
-    SERVICE_EXIT_CODE=10
-    SERVICE_IS_RUNNING="no"
-  else
-    SERVICE_EXIT_CODE=0
-    SERVICE_IS_RUNNING="no"
-  fi
-  SERVICE_EXIT_CODE=0
+	if [ "$errorCode" -ne 0 ]; then
+		echo "Failed to execute: ${cmd_exec:-$EXEC_CMD_BIN $EXEC_CMD_ARGS}" | tee -p -a "/data/logs/entrypoint.log" "$LOG_DIR/init.txt"
+		rm -Rf "$SERVICE_PID_FILE"
+		SERVICE_EXIT_CODE=10
+		SERVICE_IS_RUNNING="no"
+	else
+		SERVICE_EXIT_CODE=0
+		SERVICE_IS_RUNNING="no"
+	fi
+	SERVICE_EXIT_CODE=0
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 __banner "Initializing of $SERVICE_NAME has completed with statusCode: $SERVICE_EXIT_CODE" | tee -p -a "/data/logs/entrypoint.log" "$LOG_DIR/init.txt"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-exit $SERVICE_EXIT_CODE
+__script_exit $SERVICE_EXIT_CODE
