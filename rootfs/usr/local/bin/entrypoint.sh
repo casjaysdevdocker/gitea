@@ -223,10 +223,32 @@ mkdir -p "/usr/local/etc/docker/exec"
 touch "/data/logs/start.log"
 touch "/data/logs/entrypoint.log"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Enable cgroup v2 delegation for Docker-in-Docker
+# Setup cgroups v2 for Docker-in-Docker without mounting host cgroups
+if ! mountpoint -q /sys/fs/cgroup 2>/dev/null; then
+  mkdir -p /sys/fs/cgroup
+  mount -t cgroup2 none /sys/fs/cgroup 2>/dev/null || true
+fi
+# Enable cgroup v2 controller delegation
 if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
+  # Create init cgroup and move processes out of root (required for subtree_control)
+  [ -d "/sys/fs/cgroup/init" ] || mkdir -p /sys/fs/cgroup/init
+  if [ -f "/sys/fs/cgroup/cgroup.procs" ] && [ -w "/sys/fs/cgroup/init/cgroup.procs" ]; then
+    while read -r pid; do
+      echo "$pid" > /sys/fs/cgroup/init/cgroup.procs 2>/dev/null || true
+    done < /sys/fs/cgroup/cgroup.procs
+  fi
+  # Enable controllers at root level
   if [ -w "/sys/fs/cgroup/cgroup.subtree_control" ]; then
-    cat /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
+    for controller in $(cat /sys/fs/cgroup/cgroup.controllers 2>/dev/null); do
+      echo "+$controller" > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
+    done
+  fi
+  # Create docker cgroup for Docker-in-Docker
+  [ -d "/sys/fs/cgroup/docker" ] || mkdir -p /sys/fs/cgroup/docker
+  if [ -f "/sys/fs/cgroup/docker/cgroup.subtree_control" ]; then
+    for controller in $(cat /sys/fs/cgroup/cgroup.controllers 2>/dev/null); do
+      echo "+$controller" > /sys/fs/cgroup/docker/cgroup.subtree_control 2>/dev/null || true
+    done
   fi
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - -

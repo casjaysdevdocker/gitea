@@ -54,7 +54,7 @@ ARG PHP_SERVER
 ARG SHELL_OPTS
 ARG PATH
 
-ARG PACK_LIST="fuse-overlayfs btrfs-progs xfsprogs e2fsprogs e2fsprogs-extra zfs git ip6tables iptables openssl pigz shadow-uidmap xz docker openssh "
+ARG PACK_LIST="fuse-overlayfs btrfs-progs xfsprogs e2fsprogs e2fsprogs-extra zfs git ip6tables iptables openssl pigz shadow-uidmap xz docker openssh cgroup-tools "
 
 ENV ENV=~/.profile
 ENV SHELL="/bin/sh"

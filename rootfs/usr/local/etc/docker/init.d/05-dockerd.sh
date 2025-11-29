@@ -227,13 +227,75 @@ __run_pre_execute_checks() {
 	__banner "$pre_execute_checks_MessageST"
 	# Put command to execute in parentheses
 	{
-		# Fix cgroup v2 delegation for Docker-in-Docker
+		# Setup cgroups v2 for Docker-in-Docker without mounting host cgroups
+		echo "Setting up cgroups v2 for Docker-in-Docker"
+
+		# Check if cgroup2 filesystem needs to be mounted
+		if ! mountpoint -q /sys/fs/cgroup 2>/dev/null; then
+			echo "Mounting cgroup2 filesystem"
+			mkdir -p /sys/fs/cgroup
+			mount -t cgroup2 none /sys/fs/cgroup || {
+				echo "Warning: Failed to mount cgroup2 filesystem"
+			}
+		fi
+
+		# Verify we have cgroup v2 (unified hierarchy)
 		if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
-			echo "Enabling cgroup v2 delegation for Docker-in-Docker"
-			# Enable all available controllers at root
-			if [ -w "/sys/fs/cgroup/cgroup.subtree_control" ]; then
-				cat /sys/fs/cgroup/cgroup.controllers >/sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
+			echo "Detected cgroup v2 (unified hierarchy)"
+
+			# Get available controllers
+			CONTROLLERS=$(cat /sys/fs/cgroup/cgroup.controllers 2>/dev/null)
+			echo "Available controllers: $CONTROLLERS"
+
+			# In cgroups v2, we need to move all processes out of root cgroup
+			# before we can enable subtree_control (no internal processes rule)
+
+			# Create init cgroup for system processes (including PID 1)
+			if [ ! -d "/sys/fs/cgroup/init" ]; then
+				echo "Creating init cgroup for system processes"
+				mkdir -p /sys/fs/cgroup/init
 			fi
+
+			# Move all root cgroup processes to init cgroup
+			# This allows us to enable subtree_control at root level
+			if [ -f "/sys/fs/cgroup/cgroup.procs" ] && [ -w "/sys/fs/cgroup/init/cgroup.procs" ]; then
+				echo "Moving processes to init cgroup"
+				while read -r pid; do
+					echo "$pid" > /sys/fs/cgroup/init/cgroup.procs 2>/dev/null || true
+				done < /sys/fs/cgroup/cgroup.procs
+			fi
+
+			# Now enable controllers at root level (after processes moved out)
+			if [ -w "/sys/fs/cgroup/cgroup.subtree_control" ]; then
+				echo "Enabling cgroup v2 controller delegation at root"
+				for controller in $CONTROLLERS; do
+					echo "+$controller" > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
+				done
+			fi
+
+			# Create docker cgroup - this creates proper cgroup with interface files
+			if [ ! -d "/sys/fs/cgroup/docker" ]; then
+				echo "Creating docker cgroup"
+				mkdir -p /sys/fs/cgroup/docker
+			fi
+
+			# Enable controllers in docker cgroup for nested containers
+			if [ -f "/sys/fs/cgroup/docker/cgroup.subtree_control" ]; then
+				echo "Enabling controllers in docker cgroup"
+				for controller in $CONTROLLERS; do
+					echo "+$controller" > /sys/fs/cgroup/docker/cgroup.subtree_control 2>/dev/null || true
+				done
+			fi
+
+			# Verify setup
+			if [ -f "/sys/fs/cgroup/docker/cgroup.subtree_control" ]; then
+				echo "Docker cgroup setup successful"
+				echo "Enabled controllers: $(cat /sys/fs/cgroup/docker/cgroup.subtree_control 2>/dev/null)"
+			else
+				echo "Warning: Docker cgroup subtree_control not available"
+			fi
+		else
+			echo "Warning: cgroup v2 not available, Docker-in-Docker may have limited functionality"
 		fi
 		[ -L "/config/docker/daemon.json" ] && unlink "/config/docker/daemon.json"
 		if [ -n "$DOCKER_REGISTRIES" ]; then
@@ -275,6 +337,7 @@ EOF
   "log-level": "error",
   "experimental": true,
   "pidfile": "/tmp/docker.pid",
+  "cgroup-parent": "/docker",
   "insecure-registries": [$registry]
 }
 EOF
@@ -285,7 +348,8 @@ EOF
   "iptables": true,
   "log-level": "error",
   "experimental": true,
-  "pidfile": "/tmp/docker.pid"
+  "pidfile": "/tmp/docker.pid",
+  "cgroup-parent": "/docker"
 }
 EOF
 			fi

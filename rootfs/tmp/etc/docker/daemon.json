@@ -4,5 +4,6 @@
   "log-level": "error",
   "experimental": true,
   "pidfile": "/tmp/docker.pid",
+  "cgroup-parent": "/docker",
   "insecure-registries": ["localhost"]
 }
