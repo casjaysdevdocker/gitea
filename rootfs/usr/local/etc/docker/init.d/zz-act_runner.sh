@@ -263,8 +263,7 @@ __execute_prerun() {
 	local status=0
 	# Define actions/commands
 	while [ $count -lt $max ]; do
-		echo "Waiting for gitea to start"
-		status=$(curl -q -LSsf -o /dev/null -w '%{http_code}' --max-time 5 http://localhost)
+		status=$(curl -q -LSsf -o /dev/null -w '%{http_code}' --max-time 5 http://localhost 2>/dev/null)
 		if [ "$status" = "200" ]; then
 		  break
 	  else

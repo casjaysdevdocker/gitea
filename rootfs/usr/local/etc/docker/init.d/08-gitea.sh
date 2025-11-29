@@ -320,7 +320,7 @@ __update_conf_files() {
 		find "$DATA_DIR" -type d -exec chmod 0777 {} \;
 		chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATA_DIR" 2>/dev/null
 	fi
-	[ -f "$DATABASE_DIR/gitea.db" ] && chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATABASE_DIR/gitea.db" 2>/dev/null
+	[ -d "$DATABASE_DIR" ] && chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATABASE_DIR" 2>/dev/null
 
 	# allow custom functions
 	if builtin type -t __update_conf_files_local | grep -q 'function'; then __update_conf_files_local; fi
