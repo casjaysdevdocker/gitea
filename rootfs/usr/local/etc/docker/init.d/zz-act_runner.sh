@@ -258,8 +258,20 @@ __run_precopy() {
 __execute_prerun() {
 	# Define environment
 	local hostname=${HOSTNAME}
+	local max=30
+  local count=0
+	local status=0
 	# Define actions/commands
-
+	while [ $count -lt $max ]; do
+		echo "Waiting for gitea to start"
+		status=$(curl -q -LSsf -o /dev/null -w '%{http_code}' --max-time 5 http://localhost)
+		if [ "$status" = "200" ]; then
+		  break
+	  else
+		  sleep 30
+		  count=$((count + 1))
+		fi
+	done
 	# allow custom functions
 	if builtin type -t __execute_prerun_local | grep -q 'function'; then __execute_prerun_local; fi
 }
