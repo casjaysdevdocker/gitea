@@ -297,6 +297,21 @@ __run_pre_execute_checks() {
 		else
 			echo "Warning: cgroup v2 not available, Docker-in-Docker may have limited functionality"
 		fi
+
+		# Clean up orphaned containers before dockerd starts
+		# This prevents "failed to load container" errors on restart
+		if [ -d "/data/docker/containers" ]; then
+			echo "Checking for orphaned containers"
+			for container_dir in /data/docker/containers/*/; do
+				if [ -d "$container_dir" ]; then
+					if [ ! -f "${container_dir}config.v2.json" ]; then
+						echo "Removing orphaned container: $(basename "$container_dir")"
+						rm -rf "$container_dir"
+					fi
+				fi
+			done
+		fi
+
 		[ -L "/config/docker/daemon.json" ] && unlink "/config/docker/daemon.json"
 		if [ -n "$DOCKER_REGISTRIES" ]; then
 			local set_reg=""
@@ -338,6 +353,11 @@ EOF
   "experimental": true,
   "pidfile": "/tmp/docker.pid",
   "cgroup-parent": "/docker",
+  "default-address-pools": [
+    {"base": "172.17.0.0/12", "size": 24},
+    {"base": "192.168.0.0/16", "size": 24},
+    {"base": "10.0.0.0/8", "size": 24}
+  ],
   "insecure-registries": [$registry]
 }
 EOF
@@ -349,7 +369,12 @@ EOF
   "log-level": "error",
   "experimental": true,
   "pidfile": "/tmp/docker.pid",
-  "cgroup-parent": "/docker"
+  "cgroup-parent": "/docker",
+  "default-address-pools": [
+    {"base": "172.17.0.0/12", "size": 24},
+    {"base": "192.168.0.0/16", "size": 24},
+    {"base": "10.0.0.0/8", "size": 24}
+  ]
 }
 EOF
 			fi
