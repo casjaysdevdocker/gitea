@@ -109,7 +109,7 @@ WORK_DIR=""
 SERVICE_PORT="80"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # User to use to launch service - IE: postgres
-RUNAS_USER="root" # normally root
+RUNAS_USER="git" # gitea must run as git user, not root
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
 SERVICE_USER="git"  # execute command as another user
