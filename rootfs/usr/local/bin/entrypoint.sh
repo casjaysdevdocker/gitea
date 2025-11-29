@@ -223,6 +223,13 @@ mkdir -p "/usr/local/etc/docker/exec"
 touch "/data/logs/start.log"
 touch "/data/logs/entrypoint.log"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
+# Enable cgroup v2 delegation for Docker-in-Docker
+if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
+  if [ -w "/sys/fs/cgroup/cgroup.subtree_control" ]; then
+    cat /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
+  fi
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - -
 # fix permissions
 chmod -f 777 "/run"
 chmod -f 777 "/tmp"

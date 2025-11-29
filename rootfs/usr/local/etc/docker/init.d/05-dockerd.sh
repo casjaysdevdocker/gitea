@@ -227,6 +227,14 @@ __run_pre_execute_checks() {
 	__banner "$pre_execute_checks_MessageST"
 	# Put command to execute in parentheses
 	{
+		# Fix cgroup v2 delegation for Docker-in-Docker
+		if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
+			echo "Enabling cgroup v2 delegation for Docker-in-Docker"
+			# Enable all available controllers at root
+			if [ -w "/sys/fs/cgroup/cgroup.subtree_control" ]; then
+				cat /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
+			fi
+		fi
 		[ -L "/config/docker/daemon.json" ] && unlink "/config/docker/daemon.json"
 		if [ -n "$DOCKER_REGISTRIES" ]; then
 			local set_reg=""
