@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202511291204-git
+##@Version           :  202511290736-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
 # @@License          :  WTFPL
 # @@ReadME           :  entrypoint.sh --help
 # @@Copyright        :  Copyright: (c) 2025 Jason Hempstead, Casjays Developments
-# @@Created          :  Saturday, Nov 29, 2025 12:04 EST
+# @@Created          :  Saturday, Nov 29, 2025 07:36 EST
 # @@File             :  entrypoint.sh
 # @@Description      :  Entrypoint file for gitea
 # @@Changelog        :  New script
@@ -84,8 +84,8 @@ SERVICE_UID="${SERVICE_UID:-0}" # set the user id
 SERVICE_GID="${SERVICE_GID:-0}" # set the group id
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-#SERVICE_USER="${SERVICE_USER:-gitea}"   # execute command as another user
-#SERVICE_GROUP="${SERVICE_GROUP:-gitea}" # Set the service group
+SERVICE_USER="${SERVICE_USER:-gitea}"   # execute command as another user
+SERVICE_GROUP="${SERVICE_GROUP:-gitea}" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Secondary ports
 SERVER_PORTS="" # specifiy other ports
@@ -371,6 +371,11 @@ else
   rm -f /run/__start_init_scripts.pid /run/init.d/*.pid /run/*.pid 2>/dev/null || true
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - -
+if [ ! -f "/run/__start_init_scripts.pid" ]; then
+  START_SERVICES="yes"
+  touch /run/__start_init_scripts.pid
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - -
 [ "$ENTRYPOINT_MESSAGE" = "yes" ] && __printf_space "40" "The containers ip address is:" "$CONTAINER_IP4_ADDRESS"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Show configured listing processes
@@ -396,23 +401,26 @@ __run_message
 # Just start services
 START_SERVICES="${START_SERVICES:-SYSTEM_INIT}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Determine if we should start services based on command
-# Only skip service start for the 'init' command
-SKIP_SERVICE_START="no"
-[ "$1" = "init" ] && SKIP_SERVICE_START="yes" && CONTAINER_INIT="yes"
-[ "$2" = "init" ] && SKIP_SERVICE_START="yes" && CONTAINER_INIT="yes"
+# Never start services for these options
+[ "$1" = "cron" ] && START_SERVICES="no"
+[ "$1" = "tail" ] && START_SERVICES="no"
+[ "$1" = "logs" ] && START_SERVICES="no"
+[ "$1" = "cron" ] && START_SERVICES="no"
+[ "$1" = "backup" ] && START_SERVICES="no"
+[ "$1" = "healthcheck" ] && START_SERVICES="no"
+[ "$1" = "init" ] && START_SERVICES="no" && CONTAINER_INIT="yes"
+[ "$2" = "init" ] && START_SERVICES="no" && CONTAINER_INIT="yes"
+echo "$1" | grep -qE '^(sh|bash)$|/*/(sh|bash)$' && START_SERVICES="no"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Start all services if no pidfile and not skipping
+# Start all services if no pidfile
 if [ "$START_SERVICES" = "yes" ] || [ -z "$1" ]; then
-  if [ "$SKIP_SERVICE_START" = "no" ]; then
-    [ "$1" = "start" ] && shift 1
-    [ "$1" = "all" ] && shift 1
-    rm -Rf "/run"/*/*pid 2>/dev/null || true
-    echo "$$" >"$ENTRYPOINT_PID_FILE"
-    __start_init_scripts "/usr/local/etc/docker/init.d"
-    CONTAINER_INIT="${CONTAINER_INIT:-no}"
-  fi
+  [ "$1" = "start" ] && shift 1
+  [ "$1" = "all" ] && shift 1
+  rm -Rf "/run"/*/*pid 2>/dev/null || true
+  echo "$$" >"$ENTRYPOINT_PID_FILE"
+  __start_init_scripts "/usr/local/etc/docker/init.d"
   START_SERVICES="no"
+  CONTAINER_INIT="${CONTAINER_INIT:-no}"
 fi
 export START_SERVICES CONTAINER_INIT ENTRYPOINT_PID_FILE
 # - - - - - - - - - - - - - - - - - - - - - - - - -
