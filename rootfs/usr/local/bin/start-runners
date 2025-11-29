@@ -32,15 +32,15 @@ fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 RUNNER_LABELS="${RUNNER_LABELS:-ubuntu-latest:docker://node:16-bullseye,ubuntu-22.04:docker://node:16-bullseye}"
 # Determine number of runners to start
-RUNNERS_COUNT=${RUNNERS_ENABLE:-1}
+RUNNERS_START=${RUNNERS_START:-1}
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Validate RUNNERS_COUNT is a positive integer
-if ! [[ "$RUNNERS_COUNT" =~ ^[0-9]+$ ]] || [ "$RUNNERS_COUNT" -lt 1 ]; then
-	__log "WARNING: Invalid RUNNERS_ENABLE value '$RUNNERS_ENABLE', defaulting to 1"
-	RUNNERS_COUNT=1
+# Validate RUNNERS_START is a positive integer
+if ! [[ "$RUNNERS_START" =~ ^[0-9]+$ ]] || [ "$RUNNERS_START" -lt 1 ]; then
+	__log "WARNING: Invalid RUNNERS_START value '$RUNNERS_START', defaulting to 1"
+	RUNNERS_START=1
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-__log "Starting $RUNNERS_COUNT act_runner instance(s)"
+__log "Starting $RUNNERS_START act_runner instance(s)"
 __log "Server Address: $SERVER_ADDRESS"
 __log "Runner Name Prefix: ${RUNNER_NAME_PREFIX:-runner}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -69,17 +69,18 @@ __start_runner() {
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Start runners in background
-for i in $(seq 1 $RUNNERS_COUNT); do
+for i in $(seq 1 $RUNNERS_START); do
 	(__start_runner $i) &
-	sleep 2 # Small delay between starting runners
+	# Small delay between starting runners
+	sleep 2
 done
 unset i
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 RUNNERS_ID="$(jobs -p | tr '\n' ' ')"
 if [ -n "$RUNNERS_ID" ]; then
-	__log "All $RUNNERS_COUNT runners started successfully"
+	__log "All $RUNNERS_START runners started successfully"
 	__log "Process IDs: $RUNNERS_ID"
-	printf 'All %s runners started successfully: %s\n' "$RUNNERS_COUNT" "$RUNNERS_ID"
+	printf 'All %s runners started successfully: %s\n' "$RUNNERS_START" "$RUNNERS_ID"
 else
 	__log "The runners have failed to start"
 	printf '%s\n' "The runners have failed to start"

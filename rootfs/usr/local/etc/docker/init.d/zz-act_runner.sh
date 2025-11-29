@@ -196,6 +196,7 @@ GITEA_PORT="${GITEA_PORT:-80}"
 SYS_AUTH_TOKEN="$(__gen_auth_token)"
 GITEA_USER="${GITEA_USER:-SERVICE_USER}"
 INSTANCE_HOSTNAME="${GITEA_HOSTNAME:-$HOSTNAME}"
+RUNNERS_START="${RUNNERS_START:-5}"
 RUNNER_CACHE_PORT="${RUNNER_CACHE_PORT:-$SERVICE_PORT}"
 RUNNER_LABELS="linux:host,"
 RUNNER_LABELS+="node14:docker://node:14,"
@@ -361,6 +362,9 @@ __post_execute() {
 	local ctime=${POST_EXECUTE_WAIT_TIME:-1}                        # how long to wait before executing
 	local postMessageST="Running post commands for $SERVICE_NAME"   # message to show at start
 	local postMessageEnd="Finished post commands for $SERVICE_NAME" # message to show at completion
+	export RUNNERS_START="${RUNNERS_START:-5}" RUNNER_LABELS RUNNERS_LOG_DIR="$LOG_DIR"
+	export SERVER_ADDRESS="$RUNNER_IP_ADDRESS:$GITEA_PORT" SERVER_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
+
 	# wait
 	sleep $waitTime
 	# execute commands after waiting
