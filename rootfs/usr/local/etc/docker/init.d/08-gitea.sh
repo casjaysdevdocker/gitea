@@ -176,7 +176,7 @@ user_pass="${GITEA_USER_PASS_WORD:-}" # normal user password
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
-DATABASE_BASE_DIR="${DATABASE_DIR_SQLITE:-$DATABASE_BASE_DIR}"
+DATABASE_DIR="$DATA_DIR/db/sqlite"
 GITEA_SQL_NAME="${GITEA_SQL_NAME:-}"
 GITEA_SQL_HOST="${GITEA_SQL_HOST:-localhost}"
 GITEA_WORK_DIR="${GITEA_WORK_DIR:-$WORK_DIR}"
