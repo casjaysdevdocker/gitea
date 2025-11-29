@@ -133,8 +133,8 @@ SERVICE_PORT="44015"
 RUNAS_USER="root" # normally root
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-SERVICE_USER="gitea"  # execute command as another user
-SERVICE_GROUP="gitea" # Set the service group
+SERVICE_USER="git"  # execute command as another user
+SERVICE_GROUP="git" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set password length
 RANDOM_PASS_USER=""
@@ -196,6 +196,7 @@ GITEA_PORT="${GITEA_PORT:-80}"
 SYS_AUTH_TOKEN="$(__gen_auth_token)"
 GITEA_USER="${GITEA_USER:-SERVICE_USER}"
 INSTANCE_HOSTNAME="${GITEA_HOSTNAME:-$HOSTNAME}"
+RUNNER_CACHE_PORT="${RUNNER_CACHE_PORT:-$SERVICE_PORT}"
 RUNNER_LABELS="linux:host,"
 RUNNER_LABELS+="node14:docker://node:14,"
 RUNNER_LABELS+="node16:docker://node:16,"
@@ -356,8 +357,8 @@ __pre_execute() {
 __post_execute() {
 	local pid=""                                                    # init pid var
 	local retVal=0                                                  # set default exit code
-	local ctime=${POST_EXECUTE_WAIT_TIME:-1}                        # how long to wait before executing
 	local waitTime=$((ctime * 60))                                  # convert minutes to seconds
+	local ctime=${POST_EXECUTE_WAIT_TIME:-1}                        # how long to wait before executing
 	local postMessageST="Running post commands for $SERVICE_NAME"   # message to show at start
 	local postMessageEnd="Finished post commands for $SERVICE_NAME" # message to show at completion
 	# wait

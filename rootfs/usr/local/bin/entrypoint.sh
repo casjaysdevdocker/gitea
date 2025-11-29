@@ -1,21 +1,21 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202511290736-git
-# @@Author           :  Jason Hempstead
-# @@Contact          :  jason@casjaysdev.pro
-# @@License          :  WTFPL
+##@Version           :  GEN_SCRIPT_REPLACE_VERSION
+# @@Author           :  GEN_SCRIPT_REPLACE_AUTHOR
+# @@Contact          :  GEN_SCRIPT_REPLACE_EMAIL
+# @@License          :  GEN_SCRIPT_REPLACE_LICENSE
 # @@ReadME           :  entrypoint.sh --help
-# @@Copyright        :  Copyright: (c) 2025 Jason Hempstead, Casjays Developments
-# @@Created          :  Saturday, Nov 29, 2025 07:36 EST
+# @@Copyright        :  GEN_SCRIPT_REPLACE_COPYRIGHT
+# @@Created          :  GEN_SCRIPT_REPLACE_DATE
 # @@File             :  entrypoint.sh
-# @@Description      :  Entrypoint file for gitea
-# @@Changelog        :  New script
-# @@TODO             :  Better documentation
-# @@Other            :
-# @@Resource         :
-# @@Terminal App     :  no
-# @@sudo/root        :  no
+# @@Description      :  Entrypoint file for GEN_SCRIPT_REPLACE_APPNAME
+# @@Changelog        :  GEN_SCRIPT_REPLACE_CHANGELOG
+# @@TODO             :  GEN_SCRIPT_REPLACE_TODO
+# @@Other            :  GEN_SCRIPT_REPLACE_OTHER
+# @@Resource         :  GEN_SCRIPT_REPLACE_RES
+# @@Terminal App     :  GEN_SCRIPT_REPLACE_TERMINAL
+# @@sudo/root        :  GEN_SCRIPT_REPLACE_SUDO
 # @@Template         :  other/docker-entrypoint
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # shellcheck disable=SC1001,SC1003,SC2001,SC2003,SC2016,SC2031,SC2090,SC2115,SC2120,SC2155,SC2199,SC2229,SC2317,SC2329
@@ -31,7 +31,7 @@ PATH="/usr/local/etc/docker/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set bash options
 SCRIPT_FILE="$0"
-CONTAINER_NAME="gitea"
+CONTAINER_NAME="GEN_SCRIPT_REPLACE_APPNAME"
 SCRIPT_NAME="$(basename -- "$SCRIPT_FILE" 2>/dev/null)"
 CONTAINER_NAME="${ENV_CONTAINER_NAME:-$CONTAINER_NAME}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -84,8 +84,8 @@ SERVICE_UID="${SERVICE_UID:-0}" # set the user id
 SERVICE_GID="${SERVICE_GID:-0}" # set the group id
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-SERVICE_USER="${SERVICE_USER:-git}"   # execute command as another user
-SERVICE_GROUP="${SERVICE_GROUP:-git}" # Set the service group
+SERVICE_USER="${SERVICE_USER:-GEN_SCRIPT_REPLACE_APPNAME}"   # execute command as another user
+SERVICE_GROUP="${SERVICE_GROUP:-GEN_SCRIPT_REPLACE_APPNAME}" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Secondary ports
 SERVER_PORTS="" # specifiy other ports
@@ -94,9 +94,9 @@ SERVER_PORTS="" # specifiy other ports
 WEB_SERVER_PORT="" # port : 80,443
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Healthcheck variables
-HEALTH_ENABLED="yes" # enable healthcheck [yes/no]
-SERVICES_LIST="tini" # comma separated list of processes for the healthcheck
-HEALTH_ENDPOINTS=""  # url endpoints: [http://localhost/health,http://localhost/test]
+HEALTH_ENABLED="yes"               # enable healthcheck [yes/no]
+SERVICES_LIST="tini,gitea,dockerd" # comma separated list of processes for the healthcheck
+HEALTH_ENDPOINTS=""                # url endpoints: [http://localhost/health,http://localhost/test]
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Update path var
 export PATH RUNAS_USER SERVICE_USER SERVICE_GROUP SERVICE_UID SERVICE_GID WWW_ROOT_DIR DATABASE_DIR
@@ -258,7 +258,7 @@ fi
 if [ "$ENTRYPOINT_FIRST_RUN" != "no" ]; then
 	# Show start message
 	if [ "$CONFIG_DIR_INITIALIZED" = "no" ] || [ "$DATA_DIR_INITIALIZED" = "no" ]; then
-		[ "$ENTRYPOINT_MESSAGE" = "yes" ] && echo "Executing entrypoint script for gitea"
+		[ "$ENTRYPOINT_MESSAGE" = "yes" ] && echo "Executing entrypoint script for GEN_SCRIPT_REPLACE_APPNAME"
 	fi
 	# - - - - - - - - - - - - - - - - - - - - - - - - -
 	# Set reusable variables

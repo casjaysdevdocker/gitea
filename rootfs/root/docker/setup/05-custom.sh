@@ -45,8 +45,9 @@ if curl -q -LSsf "$GITEA_URL" -o "/tmp/gitea.$$"; then
 	echo "gitea has been installed to: $GITEA_BIN_FILE"
 	chmod +x "$GITEA_BIN_FILE"
 	if [ -d "/etc/sudoers.d" ]; then
-		echo "gitea       ALL=(ALL)      NOPASSWD: ALL" >"/etc/sudoers.d/gitea"
-		echo "docker      ALL=(ALL)      NOPASSWD: ALL" >"/etc/sudoers.d/docker"
+		echo "root       ALL=(ALL)      NOPASSWD: ALL" >"/etc/sudoers.d/root"
+		echo "git        ALL=(ALL)      NOPASSWD: ALL" >"/etc/sudoers.d/git"
+		echo "docker     ALL=(ALL)      NOPASSWD: ALL" >"/etc/sudoers.d/docker"
 	fi
 else
 	echo "Failed to download gitea" >&2
