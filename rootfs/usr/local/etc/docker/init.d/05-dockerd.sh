@@ -232,7 +232,7 @@ __run_pre_execute_checks() {
 			echo "Enabling cgroup v2 delegation for Docker-in-Docker"
 			# Enable all available controllers at root
 			if [ -w "/sys/fs/cgroup/cgroup.subtree_control" ]; then
-				cat /sys/fs/cgroup/cgroup.controllers > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
+				cat /sys/fs/cgroup/cgroup.controllers >/sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
 			fi
 		fi
 		[ -L "/config/docker/daemon.json" ] && unlink "/config/docker/daemon.json"
@@ -290,7 +290,9 @@ EOF
 EOF
 			fi
 		fi
-		[ -f "/config/docker/daemon.json" ] && cp -Rf "/config/docker/daemon.json" "/etc/docker/daemon.json"
+		if [ -f "/config/docker/daemon.json" ] && [ ! -L "/etc/docker/daemon.json" ]; then
+			cp -Rf "/config/docker/daemon.json" "/etc/docker/daemon.json"
+		fi
 		[ -f "$ETC_DIR/daemon.json" ] && sed -i 's|"REPLACE_DOCKER_REGISTRIES"|'$registry'|g' "$ETC_DIR/daemon.json"
 		[ -f "$CONF_DIR/daemon.json" ] && sed -i 's|"REPLACE_DOCKER_REGISTRIES"|'$registry'|g' "$CONF_DIR/daemon.json"
 	}
