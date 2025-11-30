@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202511290736-git
+##@Version           :  202511301623-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
 # @@License          :  WTFPL
 # @@ReadME           :  entrypoint.sh --help
 # @@Copyright        :  Copyright: (c) 2025 Jason Hempstead, Casjays Developments
-# @@Created          :  Saturday, Nov 29, 2025 07:36 EST
+# @@Created          :  Sunday, Nov 30, 2025 16:23 EST
 # @@File             :  entrypoint.sh
 # @@Description      :  Entrypoint file for gitea
 # @@Changelog        :  New script
@@ -84,8 +84,8 @@ SERVICE_UID="${SERVICE_UID:-0}" # set the user id
 SERVICE_GID="${SERVICE_GID:-0}" # set the group id
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-SERVICE_USER="${SERVICE_USER:-gitea}"   # execute command as another user
-SERVICE_GROUP="${SERVICE_GROUP:-gitea}" # Set the service group
+#SERVICE_USER="${SERVICE_USER:-gitea}"   # execute command as another user
+#SERVICE_GROUP="${SERVICE_GROUP:-gitea}" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Secondary ports
 SERVER_PORTS="" # specifiy other ports
@@ -222,35 +222,6 @@ mkdir -p "/usr/local/etc/docker/exec"
 # create required files
 touch "/data/logs/start.log"
 touch "/data/logs/entrypoint.log"
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# Setup cgroups v2 for Docker-in-Docker without mounting host cgroups
-if ! mountpoint -q /sys/fs/cgroup 2>/dev/null; then
-  mkdir -p /sys/fs/cgroup
-  mount -t cgroup2 none /sys/fs/cgroup 2>/dev/null || true
-fi
-# Enable cgroup v2 controller delegation
-if [ -f "/sys/fs/cgroup/cgroup.controllers" ]; then
-  # Create init cgroup and move processes out of root (required for subtree_control)
-  [ -d "/sys/fs/cgroup/init" ] || mkdir -p /sys/fs/cgroup/init
-  if [ -f "/sys/fs/cgroup/cgroup.procs" ] && [ -w "/sys/fs/cgroup/init/cgroup.procs" ]; then
-    while read -r pid; do
-      echo "$pid" > /sys/fs/cgroup/init/cgroup.procs 2>/dev/null || true
-    done < /sys/fs/cgroup/cgroup.procs
-  fi
-  # Enable controllers at root level
-  if [ -w "/sys/fs/cgroup/cgroup.subtree_control" ]; then
-    for controller in $(cat /sys/fs/cgroup/cgroup.controllers 2>/dev/null); do
-      echo "+$controller" > /sys/fs/cgroup/cgroup.subtree_control 2>/dev/null || true
-    done
-  fi
-  # Create docker cgroup for Docker-in-Docker
-  [ -d "/sys/fs/cgroup/docker" ] || mkdir -p /sys/fs/cgroup/docker
-  if [ -f "/sys/fs/cgroup/docker/cgroup.subtree_control" ]; then
-    for controller in $(cat /sys/fs/cgroup/cgroup.controllers 2>/dev/null); do
-      echo "+$controller" > /sys/fs/cgroup/docker/cgroup.subtree_control 2>/dev/null || true
-    done
-  fi
-fi
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # fix permissions
 chmod -f 777 "/run"
@@ -400,11 +371,6 @@ else
   rm -f /run/__start_init_scripts.pid /run/init.d/*.pid /run/*.pid 2>/dev/null || true
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-if [ ! -f "/run/__start_init_scripts.pid" ]; then
-  START_SERVICES="yes"
-  touch /run/__start_init_scripts.pid
-fi
-# - - - - - - - - - - - - - - - - - - - - - - - - -
 [ "$ENTRYPOINT_MESSAGE" = "yes" ] && __printf_space "40" "The containers ip address is:" "$CONTAINER_IP4_ADDRESS"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Show configured listing processes
@@ -430,26 +396,23 @@ __run_message
 # Just start services
 START_SERVICES="${START_SERVICES:-SYSTEM_INIT}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Never start services for these options
-[ "$1" = "cron" ] && START_SERVICES="no"
-[ "$1" = "tail" ] && START_SERVICES="no"
-[ "$1" = "logs" ] && START_SERVICES="no"
-[ "$1" = "cron" ] && START_SERVICES="no"
-[ "$1" = "backup" ] && START_SERVICES="no"
-[ "$1" = "healthcheck" ] && START_SERVICES="no"
-[ "$1" = "init" ] && START_SERVICES="no" && CONTAINER_INIT="yes"
-[ "$2" = "init" ] && START_SERVICES="no" && CONTAINER_INIT="yes"
-echo "$1" | grep -qE '^(sh|bash)$|/*/(sh|bash)$' && START_SERVICES="no"
+# Determine if we should start services based on command
+# Only skip service start for the 'init' command
+SKIP_SERVICE_START="no"
+[ "$1" = "init" ] && SKIP_SERVICE_START="yes" && CONTAINER_INIT="yes"
+[ "$2" = "init" ] && SKIP_SERVICE_START="yes" && CONTAINER_INIT="yes"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Start all services if no pidfile
+# Start all services if no pidfile and not skipping
 if [ "$START_SERVICES" = "yes" ] || [ -z "$1" ]; then
-  [ "$1" = "start" ] && shift 1
-  [ "$1" = "all" ] && shift 1
-  rm -Rf "/run"/*/*pid 2>/dev/null || true
-  echo "$$" >"$ENTRYPOINT_PID_FILE"
-  __start_init_scripts "/usr/local/etc/docker/init.d"
+  if [ "$SKIP_SERVICE_START" = "no" ]; then
+    [ "$1" = "start" ] && shift 1
+    [ "$1" = "all" ] && shift 1
+    rm -Rf "/run"/*/*pid 2>/dev/null || true
+    echo "$$" >"$ENTRYPOINT_PID_FILE"
+    __start_init_scripts "/usr/local/etc/docker/init.d"
+    CONTAINER_INIT="${CONTAINER_INIT:-no}"
+  fi
   START_SERVICES="no"
-  CONTAINER_INIT="${CONTAINER_INIT:-no}"
 fi
 export START_SERVICES CONTAINER_INIT ENTRYPOINT_PID_FILE
 # - - - - - - - - - - - - - - - - - - - - - - - - -
