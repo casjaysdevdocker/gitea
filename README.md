@@ -22,8 +22,8 @@ docker run -d \
   --name gitea \
   -p 80:80 \
   -p 22:22 \
-  -v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/rootfs/data:/data:z" \
-  -v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/rootfs/config:/config:z" \
+  -v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/volumes/data:/data:z" \
+  -v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/volumes/config:/config:z" \
   casjaysdevdocker/gitea:latest
 ```
 
@@ -45,17 +45,17 @@ dockermgr update gitea
 ## Install and run container
   
 ```shell
-mkdir -p "$HOME/.local/share/srv/docker/gitea/rootfs"
+mkdir -p "$HOME/.local/share/srv/docker/gitea/volumes"
 git clone "https://github.com/dockermgr/gitea" "$HOME/.local/share/CasjaysDev/dockermgr/gitea"
-cp -Rfva "$HOME/.local/share/CasjaysDev/dockermgr/gitea/rootfs/." "$HOME/.local/share/srv/docker/gitea/rootfs/"
+cp -Rfva "$HOME/.local/share/CasjaysDev/dockermgr/gitea/rootfs/." "$HOME/.local/share/srv/docker/gitea/volumes/"
 docker run -d \
 --restart always \
 --privileged \
 --name casjaysdevdocker-gitea \
 --hostname gitea \
 -e TZ=${TIMEZONE:-America/New_York} \
--v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/rootfs/data:/data:z" \
--v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/rootfs/config:/config:z" \
+-v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/volumes/data:/data:z" \
+-v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/volumes/config:/config:z" \
 -p 80:80 \
 casjaysdevdocker/gitea:latest
 ```
@@ -81,8 +81,8 @@ docker run -d \
   -e EMAIL_RELAY=smtp.gmail.com \
   -e SERVER_ADMIN=admin@example.com \
   -p 80:80 -p 22:22 \
-  -v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/rootfs/data:/data:z" \
-  -v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/rootfs/config:/config:z" \
+  -v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/volumes/data:/data:z" \
+  -v "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/volumes/config:/config:z" \
   casjaysdevdocker/gitea:latest
 ```
 
@@ -98,8 +98,8 @@ services:
       - TZ=America/New_York
       - HOSTNAME=gitea
     volumes:
-      - "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/rootfs/data:/data:z"
-      - "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/rootfs/config:/config:z"
+      - "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/volumes/data:/data:z"
+      - "$HOME/.local/share/srv/docker/casjaysdevdocker-gitea/volumes/config:/config:z"
     ports:
       - 80:80
     restart: always
