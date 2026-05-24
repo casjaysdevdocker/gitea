@@ -6,7 +6,7 @@ trap 'retVal=$?; echo "❌ Fatal error occurred: Exit code $retVal at line $LINE
 trap 'retVal=$?;if [ "$SERVICE_IS_RUNNING" != "yes" ] && [ -f "$SERVICE_PID_FILE" ]; then rm -Rf "$SERVICE_PID_FILE"; fi;exit $retVal' SIGINT SIGTERM SIGPWR
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Function to __log messages with timestamp
-__log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >"$RUNNERS_LOG_DIR/runners" 2>&1; }
+__log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >>"$RUNNERS_LOG_DIR/runners" 2>&1; }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Function to cleanup child processes on exit
 __cleanup() {
@@ -33,7 +33,7 @@ if [ -z "$SERVER_TOKEN" ]; then
 	exit 1
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-RUNNER_LABELS="${RUNNER_LABELS:-ubuntu-latest:docker://node:16-bullseye,ubuntu-22.04:docker://node:16-bullseye}"
+RUNNER_LABELS="${RUNNER_LABELS:-linux:host,node14:docker://node:14,node16:docker://node:16,node18:docker://node:18,node20:docker://node:20,node22:docker://node:22,node:docker://node:latest,perl:docker://perl:latest,ruby:docker://ruby:latest,python:docker://python:latest,python3:docker://python:latest,php7:docker://casjaysdevdocker/php:7,php8:docker://casjaysdevdocker/php:8,php:docker://casjaysdevdocker/php:latest,alpine:docker://casjaysdev/alpine:latest,debian:docker://casjaysdev/debian:latest,ubuntu:docker://casjaysdev/ubuntu:latest,rhel:docker://casjaysdev/almalinux:latest,redhat:docker://casjaysdev/almalinux:latest,almalinux:docker://casjaysdev/almalinux:latest,act_runner:docker://catthehacker/ubuntu:full-latest,ubuntu-latest:docker://catthehacker/ubuntu:full-latest}"
 # Determine number of runners to start
 RUNNERS_START=${RUNNERS_START:-1}
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -59,16 +59,16 @@ __start_runner() {
 
 	if [ ! -f "$runner_dir/.runner" ]; then
 		__log "Registering runner: $runner_name (ID: $runner_id)"
-		# Register the runner (this creates the .runner file)
+		# Register the runner — creates .runner in CWD
 		act_runner register --instance "$SERVER_ADDRESS" --token "$SERVER_TOKEN" --name "$runner_name" --labels "$RUNNER_LABELS" --no-interactive
 		if [ $? -ne 0 ]; then
 			__log "ERROR: Failed to register runner $runner_name"
 			return 1
 		fi
 	fi
-	# Start the daemon
+	# Start the daemon — no --config; act_runner finds .runner in CWD automatically
 	__log "Starting daemon for runner: $runner_name"
-	exec act_runner daemon --config "$runner_dir/.runner"
+	exec act_runner daemon
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Start runners in background
