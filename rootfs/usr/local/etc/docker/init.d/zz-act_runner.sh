@@ -231,7 +231,7 @@ user_pass="${ACT_RUNNER_USER_PASS_WORD:-}" # normal user password
 # Additional predefined variables
 GITEA_PORT="${GITEA_PORT:-80}"
 SYS_AUTH_TOKEN="$(__gen_auth_token)"
-GITEA_USER="${GITEA_USER:-SERVICE_USER}"
+GITEA_USER="${GITEA_USER:-$SERVICE_USER}"
 INSTANCE_HOSTNAME="${GITEA_HOSTNAME:-$HOSTNAME}"
 RUNNERS_START="${RUNNERS_START:-5}"
 RUNNER_CACHE_PORT="${RUNNER_CACHE_PORT:-$SERVICE_PORT}"
@@ -257,6 +257,16 @@ RUNNER_LABELS+="redhat:docker://casjaysdev/almalinux:latest,"
 RUNNER_LABELS+="almalinux:docker://casjaysdev/almalinux:latest,"
 RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest,"
 RUNNER_LABELS+="ubuntu-latest:docker://catthehacker/ubuntu:full-latest"
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+RUNNER_IP_ADDRESS="${RUNNER_IP_ADDRESS:-$IP4_ADDRESS}"
+RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$ETC_DIR/config.yaml}"
+RUNNER_DEFAULT_HOME="${RUNNER_DEFAULT_HOME:-$CONF_DIR/gitea}"
+RUNNER_CONFIG_NAME="${RUNNER_CONFIG_NAME:-act_runner.yaml}"
+RUNNER_LOG_FILE="${RUNNER_LOG_FILE:-$LOG_DIR/register.log}"
+RUNNER_DAEMON_LOG="${RUNNER_DAEMON_LOG:-$LOG_DIR/daemon.log}"
+RUNNER_CACHE_HOST="${RUNNER_CACHE_HOST:-$IP4_ADDRESS}"
+CACHE_CONFIG_FILE="${CACHE_CONFIG_FILE:-$ETC_DIR/cache.yaml}"
+CACHE_LOG_FILE="${CACHE_LOG_FILE:-$LOG_DIR/cache.log}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
 
@@ -406,8 +416,8 @@ __pre_execute() {
 __post_execute() {
 	local pid=""                                                    # init pid var
 	local retVal=0                                                  # set default exit code
-	local waitTime=$((ctime * 60))                                  # convert minutes to seconds
 	local ctime=${POST_EXECUTE_WAIT_TIME:-1}                        # how long to wait before executing
+	local waitTime=$((ctime * 60))                                  # convert minutes to seconds
 	local postMessageST="Running post commands for $SERVICE_NAME"   # message to show at start
 	local postMessageEnd="Finished post commands for $SERVICE_NAME" # message to show at completion
 	export RUNNERS_START="${RUNNERS_START:-5}" RUNNER_LABELS RUNNERS_LOG_DIR="$LOG_DIR"
@@ -421,7 +431,7 @@ __post_execute() {
 		__banner "$postMessageST"
 		# commands to execute
 		if [ -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
-			act_runner daemon --config $RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME >>"$RUNNER_DAEMON_LOG" 2>/dev/stderr &
+			act_runner daemon --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" >>"$RUNNER_DAEMON_LOG" 2>/dev/stderr &
 			pid=$!
 			sleep 5
 			if ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$"; then
@@ -439,7 +449,7 @@ __post_execute() {
 			mkdir -p "$DATA_DIR/cache"
 			__replace "REPLACE_RUNNER_CACHE_DIR" "$DATA_DIR/cache" "$CACHE_CONFIG_FILE"
 			__replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$CACHE_CONFIG_FILE"
-			act_runner cache-server --config $CACHE_CONFIG_FILE 2>>/dev/stderr >>"$CACHE_LOG_FILE" &
+			act_runner cache-server --config "$CACHE_CONFIG_FILE" 2>>/dev/stderr >>"$CACHE_LOG_FILE" &
 			execPid=$!
 			sleep 5
 			if ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$"; then
