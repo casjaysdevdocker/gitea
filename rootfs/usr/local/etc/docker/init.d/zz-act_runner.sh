@@ -128,7 +128,12 @@ __gen_auth_token() {
 		auth_token="$(<"$CONF_DIR/tokens/system")"
 	fi
 	auth_token="$(echo "$auth_token" | grep -vE '# |^$')"
-	auth_token="${auth_token:-$(gosu $user $gitea_bin --config "$conf_file" actions generate-runner-token 2>/dev/null | grep -vE '\.\.\.|# |^$')}"
+	if [ -z "$auth_token" ] && [ -n "$gitea_bin" ] && [ -n "$conf_file" ]; then
+		# Only attempt token generation if gitea is fully installed (INSTALL_LOCK = true)
+		if grep -qiE 'INSTALL_LOCK\s*=\s*true' "$conf_file" 2>/dev/null; then
+			auth_token="$(gosu $user $gitea_bin --config "$conf_file" --work-path /data/gitea --custom-path /config/gitea/custom actions generate-runner-token 2>/dev/null | grep -oE '[A-Za-z0-9]{20,}' | tail -n1)"
+		fi
+	fi
 	if [ -n "$auth_token" ]; then
 		exitCode=0
 		echo "$auth_token"
@@ -230,7 +235,7 @@ user_pass="${ACT_RUNNER_USER_PASS_WORD:-}" # normal user password
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional predefined variables
 GITEA_PORT="${GITEA_PORT:-80}"
-SYS_AUTH_TOKEN="$(__gen_auth_token)"
+SYS_AUTH_TOKEN=""
 GITEA_USER="${GITEA_USER:-$SERVICE_USER}"
 INSTANCE_HOSTNAME="${GITEA_HOSTNAME:-$HOSTNAME}"
 RUNNERS_START="${RUNNERS_START:-5}"
@@ -334,6 +339,7 @@ __run_pre_execute_checks() {
 		[ -d "$CONF_DIR/reg" ] || mkdir -p "$CONF_DIR/reg"
 		[ -d "$DATA_DIR/cache" ] || mkdir -p "$DATA_DIR/cache"
 		[ -d "$CONF_DIR/tokens" ] || mkdir -p "$CONF_DIR/tokens"
+		SYS_AUTH_TOKEN="${SYS_AUTH_TOKEN:-$(__gen_auth_token)}"
 		if [ -f "$RUNNER_CONFIG_DEFAULT" ]; then
 			mkdir -p "$RUNNER_DEFAULT_HOME" "$TMP_DIR/runners/gitea"
 			[ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
@@ -915,6 +921,8 @@ __fix_permissions "$SERVICE_USER" "$SERVICE_GROUP"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 #
 __run_pre_execute_checks 2>/dev/stderr | tee -a -p "/data/logs/entrypoint.log" "/data/logs/init.txt" || return 20
+# Token was set inside a subshell (pipe); read it back from the file written by __gen_auth_token
+[ -z "$SYS_AUTH_TOKEN" ] && [ -s "$CONF_DIR/tokens/system" ] && SYS_AUTH_TOKEN="$(<"$CONF_DIR/tokens/system")"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __run_start_script 2>>/dev/stderr | tee -p -a "/data/logs/entrypoint.log"
 errorCode=${PIPESTATUS[0]}
