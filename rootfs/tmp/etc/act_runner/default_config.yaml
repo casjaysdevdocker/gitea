@@ -67,4 +67,3 @@ container:
 
 cache:
   enabled: true
-  external_server: 'http://REPLACE_RUNNER_CACHE_HOST:REPLACE_RUNNER_CACHE_PORT/'

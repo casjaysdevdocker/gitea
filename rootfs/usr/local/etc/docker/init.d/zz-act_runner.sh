@@ -264,13 +264,13 @@ RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest,"
 RUNNER_LABELS+="ubuntu-latest:docker://catthehacker/ubuntu:full-latest"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 RUNNER_IP_ADDRESS="${RUNNER_IP_ADDRESS:-$IP4_ADDRESS}"
-RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$ETC_DIR/config.yaml}"
+RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$ETC_DIR/default_config.yaml}"
 RUNNER_DEFAULT_HOME="${RUNNER_DEFAULT_HOME:-$CONF_DIR/gitea}"
 RUNNER_CONFIG_NAME="${RUNNER_CONFIG_NAME:-act_runner.yaml}"
 RUNNER_LOG_FILE="${RUNNER_LOG_FILE:-$LOG_DIR/register.log}"
 RUNNER_DAEMON_LOG="${RUNNER_DAEMON_LOG:-$LOG_DIR/daemon.log}"
 RUNNER_CACHE_HOST="${RUNNER_CACHE_HOST:-$IP4_ADDRESS}"
-CACHE_CONFIG_FILE="${CACHE_CONFIG_FILE:-$ETC_DIR/cache.yaml}"
+CACHE_CONFIG_FILE="${CACHE_CONFIG_FILE:-$ETC_DIR/cache_server.yaml}"
 CACHE_LOG_FILE="${CACHE_LOG_FILE:-$LOG_DIR/cache.log}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
@@ -349,7 +349,7 @@ __run_pre_execute_checks() {
 				__replace "REPLACE_RUNNER_HOME" "$RUNNER_DEFAULT_HOME" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
 				__replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
 				__replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
-				act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://$RUNNER_IP_ADDRESS:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive 2>/dev/stdout >>"$RUNNER_LOG_FILE" &
+				act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://$RUNNER_IP_ADDRESS:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive >>"$RUNNER_LOG_FILE" 2>&1 &
 				echo $! >"$RUN_DIR/act_runner.gitea.pid"
 			fi
 		fi

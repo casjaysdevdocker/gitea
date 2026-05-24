@@ -2,7 +2,7 @@ log:
   level: warn
 
 cache:
-  enabled: true
+  enabled: false
   dir: 'REPLACE_RUNNER_CACHE_DIR'
   host: '0.0.0.0'
   port: REPLACE_RUNNER_CACHE_PORT
