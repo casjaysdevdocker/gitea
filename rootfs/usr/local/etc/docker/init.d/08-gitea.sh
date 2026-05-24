@@ -568,7 +568,7 @@ __run_start_script() {
           _q_path=$(printf '%q' "$path")
           _q_sysname=$(printf '%q' "$sysname")
           _q_svcuser=$(printf '%q' "${SERVICE_USER:-$RUNAS_USER}")
-          _q_su=$(printf '%q ' $su_exec)
+          _q_su="${su_exec:+$(printf '%q ' $su_exec)}"
           _q_cmd=$(printf '%q' "$cmd")
           _q_args=$(printf '%q ' $args)
           _q_extra=$(printf '%q ' $extra_env)
@@ -581,7 +581,7 @@ __run_start_script() {
             printf 'SERVICE_NAME=%q\n' "$SERVICE_NAME"
             printf 'SERVICE_PID_FILE=%q\n' "$SERVICE_PID_FILE"
             printf 'LOG_DIR=%q\n' "$LOG_DIR"
-            printf '%s env -i HOME=%s LC_CTYPE=%s PATH=%s HOSTNAME=%s USER=%s %s %s %s 2>>"/dev/stderr" >>"$LOG_DIR/$SERVICE_NAME.log" &\n' \
+            printf '%senv -i HOME=%s LC_CTYPE=%s PATH=%s HOSTNAME=%s USER=%s %s %s %s 2>>"/dev/stderr" >>"$LOG_DIR/$SERVICE_NAME.log" &\n' \
               "$_q_su" "$_q_home" "$_q_lc" "$_q_path" "$_q_sysname" "$_q_svcuser" "$_q_extra" "$_q_cmd" "$_q_args"
             printf 'execPid=$!\n'
             printf 'sleep 1\n'
@@ -599,20 +599,24 @@ __run_start_script() {
         fi
       else
         if [ ! -f "$START_SCRIPT" ]; then
-          local _q_su _q_cmd _q_args
-          _q_su=$(printf '%q ' $su_exec)
+          local _q_su _q_cmd _q_args _q_path _q_home
+          _q_su="${su_exec:+$(printf '%q ' $su_exec)}"
           _q_cmd=$(printf '%q' "$cmd")
           _q_args=$(printf '%q ' $args)
+          _q_path=$(printf '%q' "$path")
+          _q_home=$(printf '%q' "$home")
           {
             printf '#!/usr/bin/env bash\n'
             printf "trap 'exitCode=\$?;[ \$exitCode -ne 0 ] && [ -f \"\$SERVICE_PID_FILE\" ] && rm -Rf \"\$SERVICE_PID_FILE\";exit \$exitCode' EXIT\n"
             printf 'set -Eeo pipefail\n'
             printf '# Setting up %s to run as %s\n' "$cmd" "${SERVICE_USER:-root}"
+            printf 'export PATH=%s\n' "$_q_path"
+            printf 'export HOME=%s\n' "$_q_home"
             printf 'retVal=10\n'
             printf 'SERVICE_NAME=%q\n' "$SERVICE_NAME"
             printf 'SERVICE_PID_FILE=%q\n' "$SERVICE_PID_FILE"
             printf 'LOG_DIR=%q\n' "$LOG_DIR"
-            printf '%s %s %s 2>>"/dev/stderr" >>"$LOG_DIR/$SERVICE_NAME.log" &\n' \
+            printf '%s%s %s 2>>"/dev/stderr" >>"$LOG_DIR/$SERVICE_NAME.log" &\n' \
               "$_q_su" "$_q_cmd" "$_q_args"
             printf 'execPid=$!\n'
             printf 'sleep 1\n'
