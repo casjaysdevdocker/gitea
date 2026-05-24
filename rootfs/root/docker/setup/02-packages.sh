@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202511290736-git
+##@Version           :  202605241158-git
 # @@Author           :  CasjaysDev
 # @@Contact          :  CasjaysDev <docker-admin@casjaysdev.pro>
 # @@License          :  MIT
-# @@Copyright        :  Copyright 2025 CasjaysDev
-# @@Created          :  Sat Nov 29 07:36:08 AM EST 2025
+# @@Copyright        :  Copyright 2026 CasjaysDev
+# @@Created          :  Sun May 24 11:58:45 AM EDT 2026
 # @@File             :  02-packages.sh
 # @@Description      :  script to run packages
 # @@Changelog        :  newScript
@@ -28,10 +28,7 @@ exitCode=0
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Predefined actions
-[ -d "/etc/nginx" ] && rm -Rf "/etc/nginx"/*
-[ -d "/etc/gitea" ] && rm -Rf "/etc/gitea"/*
-[ -d "/etc/docker" ] && rm -Rf "/etc/docker"/*
-[ -d "/etc/act_runner" ] && rm -Rf "/etc/act_runner"/*
+
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Main script
 
@@ -43,3 +40,4 @@ exit $exitCode
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # ex: ts=2 sw=2 et filetype=sh
 # - - - - - - - - - - - - - - - - - - - - - - - - -
+

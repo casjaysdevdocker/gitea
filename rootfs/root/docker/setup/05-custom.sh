@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202511290736-git
+##@Version           :  202605241158-git
 # @@Author           :  CasjaysDev
 # @@Contact          :  CasjaysDev <docker-admin@casjaysdev.pro>
 # @@License          :  MIT
-# @@Copyright        :  Copyright 2025 CasjaysDev
-# @@Created          :  Sat Nov 29 07:36:08 AM EST 2025
+# @@Copyright        :  Copyright 2026 CasjaysDev
+# @@Created          :  Sun May 24 11:58:45 AM EDT 2026
 # @@File             :  05-custom.sh
 # @@Description      :  script to run custom
 # @@Changelog        :  newScript
