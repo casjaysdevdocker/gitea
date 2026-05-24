@@ -51,7 +51,7 @@ if curl -q -LSsf "$GITEA_URL" -o "/tmp/gitea.$$"; then
 	fi
 else
 	echo "Failed to download gitea" >&2
-	exitCode=$((exitCode++))
+	exitCode=$((exitCode + 1))
 fi
 echo "Downloading act_runner from $ACT_URL"
 if curl -q -LSsf "$ACT_URL" -o "/tmp/act_runner.$$"; then
@@ -60,7 +60,7 @@ if curl -q -LSsf "$ACT_URL" -o "/tmp/act_runner.$$"; then
 	chmod +x "$ACT_BIN_FILE"
 else
 	echo "Failed to download act_runner" >&2
-	exitCode=$((exitCode++))
+	exitCode=$((exitCode + 1))
 fi
 [ -x "$ACT_BIN_FILE" ] && [ -x "$GITEA_BIN_FILE" ] && exitCode=0
 # - - - - - - - - - - - - - - - - - - - - - - - - -

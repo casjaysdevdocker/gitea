@@ -9,7 +9,7 @@
 # @@Copyright        :  Copyright: (c) 2026 Jason Hempstead, Casjays Developments
 # @@Created          :  Sunday, May 24, 2026 11:58 EDT
 # @@File             :  entrypoint.sh
-# @@Description      :  Entrypoint file for archlinux
+# @@Description      :  Entrypoint file for gitea
 # @@Changelog        :  New script
 # @@TODO             :  Better documentation
 # @@Other            :  
@@ -39,7 +39,7 @@ PATH="/usr/local/etc/docker/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set bash options
 SCRIPT_FILE="$0"
-CONTAINER_NAME="archlinux"
+CONTAINER_NAME="gitea"
 SCRIPT_NAME="${SCRIPT_FILE##*/}"
 CONTAINER_NAME="${ENV_CONTAINER_NAME:-$CONTAINER_NAME}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -294,7 +294,7 @@ fi
 if [ "$ENTRYPOINT_FIRST_RUN" != "no" ]; then
   if [ "$CONFIG_DIR_INITIALIZED" = "no" ] || [ "$DATA_DIR_INITIALIZED" = "no" ]; then
     if [ "$ENTRYPOINT_MESSAGE" = "yes" ]; then
-      echo "Executing entrypoint script for archlinux"
+      echo "Executing entrypoint script for gitea"
     fi
   fi
   # - - - - - - - - - - - - - - - - - - - - - - - - -

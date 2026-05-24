@@ -322,7 +322,7 @@ __update_conf_files() {
 
 	# - - - - - - - - - - - - - - - - - - - - - - - - -
 	# define actions
-	[ -d " /config/ssh" ] || mkdir -p "/config/ssh"
+	[ -d "/config/ssh" ] || mkdir -p "/config/ssh"
 	[ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
 	[ "$COPY_SSHD_CONF" = "yes" ] && copy "/etc/ssh/sshd_config" "/config/ssh/"
 	if [ ! -f "/config/ssh/ssh_host_ed25519_key" ]; then
