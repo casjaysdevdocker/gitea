@@ -47,35 +47,46 @@ __log "Starting $RUNNERS_START act_runner instance(s)"
 __log "Server Address: $SERVER_ADDRESS"
 __log "Runner Name Prefix: ${RUNNER_NAME_PREFIX:-runner}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Function to start a single runner
-__start_runner() {
+# Register a single runner synchronously (no daemon start)
+__register_runner() {
 	local runner_id=$1
 	local runner_name="${RUNNER_NAME_PREFIX:-runner}-${runner_id}"
 	local runner_dir="/config/act_runner/reg/${runner_name}"
 
-	# Create runner directory
 	mkdir -p "$runner_dir"
 	[ -d "$runner_dir" ] && cd "$runner_dir" || return 1
 
 	if [ ! -f "$runner_dir/.runner" ]; then
 		__log "Registering runner: $runner_name (ID: $runner_id)"
-		# Register the runner — creates .runner in CWD
 		act_runner register --instance "$SERVER_ADDRESS" --token "$SERVER_TOKEN" --name "$runner_name" --labels "$RUNNER_LABELS" --no-interactive
 		if [ $? -ne 0 ]; then
 			__log "ERROR: Failed to register runner $runner_name"
 			return 1
 		fi
 	fi
-	# Start the daemon — no --config; act_runner finds .runner in CWD automatically
+	__log "Runner $runner_name registered"
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Start daemon for a single runner (called in background after all are registered)
+__start_runner_daemon() {
+	local runner_id=$1
+	local runner_name="${RUNNER_NAME_PREFIX:-runner}-${runner_id}"
+	local runner_dir="/config/act_runner/reg/${runner_name}"
+
+	[ -d "$runner_dir" ] && cd "$runner_dir" || return 1
 	__log "Starting daemon for runner: $runner_name"
 	exec act_runner daemon
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Start runners in background
+# Phase 1: register all runners sequentially so IDs are assigned in order
 for i in $(seq 1 $RUNNERS_START); do
-	(__start_runner $i) &
-	# Small delay between starting runners
-	sleep 2
+	__register_runner "$i" || { __log "Aborting: registration failed for runner-$i"; exit 1; }
+done
+unset i
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Phase 2: start all daemons in parallel
+for i in $(seq 1 $RUNNERS_START); do
+	(__start_runner_daemon "$i") &
 done
 unset i
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
