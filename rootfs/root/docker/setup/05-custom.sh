@@ -25,6 +25,8 @@ set -o pipefail
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set env variables
 exitCode=0
+apk add --no-cache ca-certificates 2>/dev/null || true
+update-ca-certificates 2>/dev/null || true
 GITEA_VERSION="${GITEA_VERSION:-latest}"
 GITEA_BIN_FILE="/usr/local/bin/gitea"
 ACT_BIN_FILE="/usr/local/bin/act_runner"
@@ -33,14 +35,18 @@ case "$ARCH" in x86_64) ARCH="amd64" ;; aarch64) ARCH="arm64" ;; *) echo "$ARCH 
 ACT_VERSIONS="$(curl -q -LSsf 'https://gitea.com/api/v1/repos/gitea/act_runner/releases' -H 'accept: application/json' | jq -r '.[].tag_name' | sort -Vr | head -n1)"
 ACT_URL="$(curl -q -LSsf "https://gitea.com/api/v1/repos/gitea/act_runner/releases/tags/$ACT_VERSIONS" -H 'accept: application/json' | jq -rc '.assets|.[]|.browser_download_url' | grep "linux.*$ARCH$")"
 if [ -z "$GITEA_VERSION" ] || [ "$GITEA_VERSION" = "latest" ] || [ "$GITEA_VERSION" = "current" ]; then
-	GITEA_URL="$(curl -s https://api.github.com/repos/go-gitea/gitea/releases/latest | jq -r '.assets[] | select(.name|match("linux.*'${ARCH}'$")) | .browser_download_url')"
-else
-	GITEA_URL="https://github.com/go-gitea/gitea/releases/download/v$GITEA_VERSION/gitea-$GITEA_VERSION-linux-$ARCH"
+	_latest_url="$(curl -4sfL -o /dev/null -w '%{url_effective}' https://github.com/go-gitea/gitea/releases/latest 2>/dev/null)"
+	GITEA_VERSION="$(printf '%s\n' "$_latest_url" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
 fi
+if [ -z "$GITEA_VERSION" ]; then
+	echo "Failed to resolve gitea latest version from GitHub" >&2
+	exit 1
+fi
+GITEA_URL="https://github.com/go-gitea/gitea/releases/download/v${GITEA_VERSION}/gitea-${GITEA_VERSION}-linux-${ARCH}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Predefined actions
-echo "Dowloading gitea from $GITEA_URL"
-if curl -q -LSsf "$GITEA_URL" -o "/tmp/gitea.$$"; then
+echo "Downloading gitea from $GITEA_URL"
+if curl -4 -q -LSsf "$GITEA_URL" -o "/tmp/gitea.$$"; then
 	mv -f "/tmp/gitea.$$" "$GITEA_BIN_FILE"
 	echo "gitea has been installed to: $GITEA_BIN_FILE"
 	chmod +x "$GITEA_BIN_FILE"
