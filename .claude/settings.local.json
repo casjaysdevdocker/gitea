@@ -1,7 +1,8 @@
 {
   "permissions": {
     "allow": [
-      "Bash(script-lint *)"
+      "Bash(script-lint *)",
+      "WebFetch(domain:docs.gitea.com)"
     ]
   }
 }
