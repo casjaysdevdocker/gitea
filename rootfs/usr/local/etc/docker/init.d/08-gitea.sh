@@ -353,6 +353,27 @@ __update_conf_files() {
 		sed -i "s|REPLACE_GITEA_INTERNAL_TOKEN|$GITEA_INTERNAL_TOKEN|g" "$CONF_DIR/app.ini"
 		sed -i "s|REPLACE_GITEA_LFS_JWT_SECRET|$GITEA_LFS_JWT_SECRET|g" "$CONF_DIR/app.ini"
 	fi
+	# Re-stamp dynamic values and remove deprecated settings on every startup.
+	# Applied to both the persistent copy (/config/gitea) and the runtime copy
+	# (/etc/gitea) so Gitea sees the correct values on this boot without needing
+	# a second restart.
+	for _ini_file in "$CONF_DIR/app.ini" "$ETC_DIR/app.ini"; do
+		[ -f "$_ini_file" ] || continue
+		# Sync ROOT_URL, DOMAIN, and SSH_DOMAIN from current env vars
+		sed -i "s|^ROOT_URL[[:space:]]*=.*|ROOT_URL = ${SERVICE_PROTOCOL:-http}://${HOSTNAME}|" "$_ini_file"
+		sed -i "s|^DOMAIN[[:space:]]*=.*|DOMAIN = ${HOSTNAME}|" "$_ini_file"
+		sed -i "s|^SSH_DOMAIN[[:space:]]*=.*|SSH_DOMAIN = ${HOSTNAME}|" "$_ini_file"
+		# Remove deprecated [cors].X_FRAME_OPTIONS (moved to [security] in Gitea v1.26)
+		awk 'BEGIN{in_s=0}/^\[/{in_s=0}/^\[cors\]/{in_s=1}in_s&&/^X_FRAME_OPTIONS/{next}{print}' \
+			"$_ini_file" > /tmp/_gitea_conf.ini && mv /tmp/_gitea_conf.ini "$_ini_file"
+		# Remove deprecated [picture].DISABLE_GRAVATAR (moved to admin panel in Gitea v1.18)
+		awk 'BEGIN{in_s=0}/^\[/{in_s=0}/^\[picture\]/{in_s=1}in_s&&/^DISABLE_GRAVATAR/{next}{print}' \
+			"$_ini_file" > /tmp/_gitea_conf.ini && mv /tmp/_gitea_conf.ini "$_ini_file"
+		# Remove deprecated [picture].ENABLE_FEDERATED_AVATAR (moved to admin panel in Gitea v1.18)
+		awk 'BEGIN{in_s=0}/^\[/{in_s=0}/^\[picture\]/{in_s=1}in_s&&/^ENABLE_FEDERATED_AVATAR/{next}{print}' \
+			"$_ini_file" > /tmp/_gitea_conf.ini && mv /tmp/_gitea_conf.ini "$_ini_file"
+	done
+	unset _ini_file
 	if [ -n "$DATA_DIR" ] && [ -d "$DATA_DIR" ]; then
 		find "$DATA_DIR" -type d -exec chmod 0777 {} \;
 		chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATA_DIR" 2>/dev/null
