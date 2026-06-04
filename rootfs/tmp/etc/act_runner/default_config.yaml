@@ -66,4 +66,4 @@ container:
   docker_host: ''
 
 cache:
-  enabled: true
+  enabled: false
