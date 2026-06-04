@@ -32,8 +32,23 @@ GITEA_BIN_FILE="/usr/local/bin/gitea"
 ACT_BIN_FILE="/usr/local/bin/act_runner"
 ARCH="$(uname -m | tr '[:upper]' '[:lower]')"
 case "$ARCH" in x86_64) ARCH="amd64" ;; aarch64) ARCH="arm64" ;; *) echo "$ARCH is not supported by this script" >&2 && exit 1 ;; esac
-ACT_VERSIONS="$(curl -q -LSsf 'https://gitea.com/api/v1/repos/gitea/act_runner/releases' -H 'accept: application/json' | jq -r '.[].tag_name' | sort -Vr | head -n1)"
-ACT_URL="$(curl -q -LSsf "https://gitea.com/api/v1/repos/gitea/act_runner/releases/tags/$ACT_VERSIONS" -H 'accept: application/json' | jq -rc '.assets|.[]|.browser_download_url' | grep "linux.*$ARCH$")"
+# Pinned fallback used when gitea.com is unreachable from the build host
+# Repo was renamed gitea/act_runner -> gitea/runner; binaries are now gitea-runner-{ver}-linux-{arch}
+ACT_RUNNER_FALLBACK_VERSION="${ACT_RUNNER_FALLBACK_VERSION:-v1.0.8}"
+# Fetch latest version tag from the renamed repo — 30s connect timeout
+ACT_VERSIONS="$(curl -q --connect-timeout 30 --max-time 45 -LSsf \
+  'https://gitea.com/api/v1/repos/gitea/runner/releases' \
+  -H 'accept: application/json' 2>/dev/null | jq -r '.[].tag_name' | sort -Vr | head -n1)"
+# Fall back to pinned version if API is unreachable
+[ -z "$ACT_VERSIONS" ] && ACT_VERSIONS="$ACT_RUNNER_FALLBACK_VERSION" && echo "WARNING: gitea.com unreachable, using act_runner $ACT_VERSIONS" >&2
+# Fetch download URL from API; binary names use the version without leading 'v'
+ACT_URL="$(curl -q --connect-timeout 30 --max-time 45 -LSsf \
+  "https://gitea.com/api/v1/repos/gitea/runner/releases/tags/$ACT_VERSIONS" \
+  -H 'accept: application/json' 2>/dev/null | jq -rc '.assets|.[]|.browser_download_url' | grep "linux-${ARCH}$")"
+# If API parse yielded nothing, construct the direct download URL from the version
+# Tag format: v1.0.8 → filename: gitea-runner-1.0.8-linux-amd64 (strip leading 'v')
+ACT_VER_PLAIN="${ACT_VERSIONS#v}"
+[ -z "$ACT_URL" ] && ACT_URL="https://gitea.com/gitea/runner/releases/download/${ACT_VERSIONS}/gitea-runner-${ACT_VER_PLAIN}-linux-${ARCH}"
 if [ -z "$GITEA_VERSION" ] || [ "$GITEA_VERSION" = "latest" ] || [ "$GITEA_VERSION" = "current" ]; then
 	_latest_url="$(curl -4sfL -o /dev/null -w '%{url_effective}' https://github.com/go-gitea/gitea/releases/latest 2>/dev/null)"
 	GITEA_VERSION="$(printf '%s\n' "$_latest_url" | grep -oE '[0-9]+\.[0-9]+\.[0-9]+')"
@@ -60,7 +75,10 @@ else
 	exitCode=$((exitCode + 1))
 fi
 echo "Downloading act_runner from $ACT_URL"
-if curl -q -LSsf "$ACT_URL" -o "/tmp/act_runner.$$"; then
+if [ -z "$ACT_URL" ]; then
+	echo "Failed to resolve act_runner download URL" >&2
+	exitCode=$((exitCode + 1))
+elif curl -q -LSsf "$ACT_URL" -o "/tmp/act_runner.$$"; then
 	mv -f "/tmp/act_runner.$$" "$ACT_BIN_FILE"
 	echo "act_runner has been installed to: $ACT_BIN_FILE"
 	chmod +x "$ACT_BIN_FILE"
