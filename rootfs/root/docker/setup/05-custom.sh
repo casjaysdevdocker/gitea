@@ -61,7 +61,7 @@ GITEA_URL="https://github.com/go-gitea/gitea/releases/download/v${GITEA_VERSION}
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Predefined actions
 echo "Downloading gitea from $GITEA_URL"
-if curl -4 -q -LSsf "$GITEA_URL" -o "/tmp/gitea.$$"; then
+if curl -4 -q -LSsf --retry 5 --retry-delay 10 --retry-all-errors "$GITEA_URL" -o "/tmp/gitea.$$"; then
 	mv -f "/tmp/gitea.$$" "$GITEA_BIN_FILE"
 	echo "gitea has been installed to: $GITEA_BIN_FILE"
 	chmod +x "$GITEA_BIN_FILE"
@@ -78,7 +78,7 @@ echo "Downloading act_runner from $ACT_URL"
 if [ -z "$ACT_URL" ]; then
 	echo "Failed to resolve act_runner download URL" >&2
 	exitCode=$((exitCode + 1))
-elif curl -q -LSsf "$ACT_URL" -o "/tmp/act_runner.$$"; then
+elif curl -q -LSsf --retry 5 --retry-delay 10 --retry-all-errors "$ACT_URL" -o "/tmp/act_runner.$$"; then
 	mv -f "/tmp/act_runner.$$" "$ACT_BIN_FILE"
 	echo "act_runner has been installed to: $ACT_BIN_FILE"
 	chmod +x "$ACT_BIN_FILE"
