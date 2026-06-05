@@ -2,7 +2,9 @@
   "permissions": {
     "allow": [
       "Bash(script-lint *)",
-      "WebFetch(domain:docs.gitea.com)"
+      "WebFetch(domain:docs.gitea.com)",
+      "Bash(cp /tmp/templates/gitea/rootfs/usr/local/bin/entrypoint.sh /root/Projects/github/casjaysdevdocker/gitea/rootfs/usr/local/bin/entrypoint.sh)",
+      "Bash(cp /tmp/templates/gitea/rootfs/usr/local/etc/docker/functions/entrypoint.sh /root/Projects/github/casjaysdevdocker/gitea/rootfs/usr/local/etc/docker/functions/entrypoint.sh)"
     ]
   }
 }

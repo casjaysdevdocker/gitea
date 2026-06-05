@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202605241142-git
+##@Version           :  202606041210-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
 # @@License          :  WTFPL
 # @@ReadME           :  entrypoint.sh --help
 # @@Copyright        :  Copyright: (c) 2026 Jason Hempstead, Casjays Developments
-# @@Created          :  Sunday, May 24, 2026 11:58 EDT
+# @@Created          :  Friday, Jun 05, 2026 17:54 EDT
 # @@File             :  entrypoint.sh
 # @@Description      :  Entrypoint file for gitea
 # @@Changelog        :  New script
@@ -28,11 +28,11 @@ trap 'retVal=$?;[ "$SERVICE_IS_RUNNING" != "yes" ] && [ -f "$SERVICE_PID_FILE" ]
 [ -f "/config/.debug" ] && [ -z "$DEBUGGER_OPTIONS" ] && export DEBUGGER_OPTIONS="$(<"/config/.debug")" || DEBUGGER_OPTIONS="${DEBUGGER_OPTIONS:-}"
 if [ "$DEBUGGER" = "on" ] || [ -f "/config/.debug" ]; then
   echo "Enabling debugging"
-  set -o pipefail
+  set -eo pipefail
   [ -n "$DEBUGGER_OPTIONS" ] && set -"$DEBUGGER_OPTIONS"
   export DEBUGGER="on"
 else
-  set -o pipefail
+  set -eo pipefail
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 PATH="/usr/local/etc/docker/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin"
@@ -61,8 +61,8 @@ case "$1" in
 # Help message
 -h | --help)
   shift 1
-  echo 'Docker container for '$CONTAINER_NAME''
-  echo "Usage: $CONTAINER_NAME [help tail cron exec start init shell certbot ssl procs ports healthcheck backup command]"
+  echo "Docker container for $CONTAINER_NAME"
+  echo "Usage: $CONTAINER_NAME [help tail cron exec start init shell procs ports healthcheck backup command]"
   echo ""
   exit 0
   ;;
@@ -95,8 +95,8 @@ SERVICE_UID="${SERVICE_UID:-0}"
 SERVICE_GID="${SERVICE_GID:-0}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # User and group in which the service switches to - IE: nginx,apache,mysql,postgres
-#SERVICE_USER="${SERVICE_USER:-archlinux}"   # execute command as another user
-#SERVICE_GROUP="${SERVICE_GROUP:-archlinux}" # Set the service group
+#SERVICE_USER="${SERVICE_USER:-alpine}"   # execute command as another user
+#SERVICE_GROUP="${SERVICE_GROUP:-alpine}" # Set the service group
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Secondary ports
 # specifiy other ports
@@ -155,9 +155,6 @@ export SSL_CA="${SSL_CA:-/config/ssl/ca.crt}"
 export SSL_KEY="${SSL_KEY:-/config/ssl/localhost.pem}"
 export SSL_CERT="${SSL_CERT:-/config/ssl/localhost.crt}"
 export LOCAL_BIN_DIR="${LOCAL_BIN_DIR:-/usr/local/bin}"
-export DEFAULT_DATA_DIR="${DEFAULT_DATA_DIR:-/usr/local/share/template-files/data}"
-export DEFAULT_CONF_DIR="${DEFAULT_CONF_DIR:-/usr/local/share/template-files/config}"
-export DEFAULT_TEMPLATE_DIR="${DEFAULT_TEMPLATE_DIR:-/usr/local/share/template-files/defaults}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Backup settings
 export BACKUP_MAX_DAYS="${BACKUP_MAX_DAYS:-}"
@@ -214,15 +211,15 @@ else
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # clean ENV_PORTS variables
-ENV_PORTS="${ENV_PORTS//,/ }"  #
-ENV_PORTS="${ENV_PORTS//\/*/}" #
+ENV_PORTS="${ENV_PORTS//,/ }"
+ENV_PORTS="${ENV_PORTS//\/*/}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # clean SERVER_PORTS variables
-SERVER_PORTS="${SERVER_PORTS//,/ }"  #
-SERVER_PORTS="${SERVER_PORTS//\/*/}" #
+SERVER_PORTS="${SERVER_PORTS//,/ }"
+SERVER_PORTS="${SERVER_PORTS//\/*/}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # clean WEB_SERVER_PORTS variables
-WEB_SERVER_PORTS="${WEB_SERVER_PORT//,/ } ${ENV_WEB_SERVER_PORTS//,/ }" #
+WEB_SERVER_PORTS="${WEB_SERVER_PORT//,/ } ${ENV_WEB_SERVER_PORTS//,/ }"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # rewrite and merge variables
 ENV_PORTS="$(__format_variables "$ENV_PORTS" || false)"
@@ -294,7 +291,7 @@ fi
 if [ "$ENTRYPOINT_FIRST_RUN" != "no" ]; then
   if [ "$CONFIG_DIR_INITIALIZED" = "no" ] || [ "$DATA_DIR_INITIALIZED" = "no" ]; then
     if [ "$ENTRYPOINT_MESSAGE" = "yes" ]; then
-      echo "Executing entrypoint script for gitea"
+      echo "Executing entrypoint script for alpine"
     fi
   fi
   # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -406,21 +403,6 @@ if [ "$ENTRYPOINT_FIRST_RUN" != "no" ] || [ "$CONFIG_DIR_INITIALIZED" = "no" ] |
   # - - - - - - - - - - - - - - - - - - - - - - - - -
   # Setup bin directory - /config/bin > /usr/local/bin
   __initialize_custom_bin_dir
-  # - - - - - - - - - - - - - - - - - - - - - - - - -
-  # Copy default system configs - /usr/local/share/template-files/defaults > /config/
-  if [ "$CONFIG_DIR_INITIALIZED" = "no" ]; then
-    __initialize_default_templates
-  fi
-  # - - - - - - - - - - - - - - - - - - - - - - - - -
-  # Copy custom config files - /usr/local/share/template-files/config > /config/
-  if [ "$CONFIG_DIR_INITIALIZED" = "no" ]; then
-    __initialize_config_dir
-  fi
-  # - - - - - - - - - - - - - - - - - - - - - - - - -
-  # Copy custom data files - /usr/local/share/template-files/data > /data/
-  if [ "$DATA_DIR_INITIALIZED" = "no" ]; then
-    __initialize_data_dir
-  fi
   # - - - - - - - - - - - - - - - - - - - - - - - - -
   # Initialize SSL certificates
   __initialize_ssl_certs
@@ -637,27 +619,6 @@ procs)
   shift 1
   ps="$(__ps axco command 2>/dev/null | grep -vE '^(COMMAND|grep|ps)$' | sort -u)"
   [ -n "$ps" ] && printf '%s\n%s\n' "Found the following processes" "$ps" | tr '\n' ' '
-  exit $?
-  ;;
-  # setup ssl
-ssl)
-  shift 1
-  __create_ssl_cert
-  exit $?
-  ;;
-# manage ssl certificate
-certbot)
-  shift 1
-  CERT_BOT_ENABLED="yes"
-  if [ "$1" = "create" ]; then
-    shift 1
-    __certbot "create"
-  elif [ "$1" = "renew" ]; then
-    shift 1
-    __certbot "renew certonly --force-renew"
-  else
-    __exec_command "certbot" "$@"
-  fi
   exit $?
   ;;
 # Launch shell
