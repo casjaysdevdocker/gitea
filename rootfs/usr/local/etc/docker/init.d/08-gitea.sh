@@ -371,7 +371,7 @@ __update_conf_files() {
 		ssh-keygen -t ecdsa -b 256 -f /config/ssh/ssh_host_ecdsa_key -N "" >/dev/null && __symlink "/config/ssh/ssh_host_ecdsa_key" "$DATA_DIR/ssh/ssh_host_ecdsa_key"
 	fi
 	chmod 0700 "$DATA_DIR/ssh" /config/ssh
-	chmod 0600 "$DATA_DIR/ssh"/* /config/ssh/*
+	find "$DATA_DIR/ssh" /config/ssh -maxdepth 1 -type f -exec chmod 0600 {} \;
 	[ -d "$DATA_DIR/ssh" ] || mkdir -p "$DATA_DIR/ssh"
 	[ -d "$CONF_DIR/custom" ] || mkdir -p "$CONF_DIR/custom"
 	if [ -n "$CONF_DIR" ] && [ -f "$CONF_DIR/app.ini" ]; then
