@@ -203,13 +203,14 @@ act_runner register \
   --instance https://git.example.com \
   --token    <registration-token> \
   --name     "arm64-server" \
-  --labels   "arm64:host,linux/arm64:host,ubuntu:docker://ubuntu:latest,alpine:docker://alpine:latest" \
+  --labels   "arm64:docker://ubuntu:latest,linux/arm64:docker://ubuntu:latest,alpine:docker://alpine:latest,debian:docker://debian:latest" \
   --no-interactive
 ```
 
-Label format: `name:type` or `name:type:image`
-- `arm64:host` — runs jobs natively on this machine
-- `ubuntu:docker://ubuntu:latest` — spins a Docker container per job (requires Docker on the host)
+Label format: `name:type:image` — all jobs run inside Docker containers, never directly on the host.
+- `arm64:docker://ubuntu:latest` — dispatched to this runner, job runs in a native arm64 Ubuntu container
+- `linux/arm64:docker://ubuntu:latest` — OCI-style label for the same runner
+- Docker must be installed and running on the host machine
 
 ### 4 — Run as a systemd service
 

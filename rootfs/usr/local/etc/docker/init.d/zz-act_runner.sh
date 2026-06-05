@@ -270,9 +270,9 @@ case "$_HOST_ARCH" in
   aarch64) _ARCH_LABEL="arm64" ;;
   *)       _ARCH_LABEL="$_HOST_ARCH" ;;
 esac
-RUNNER_LABELS="${_ARCH_LABEL}:host,"
-RUNNER_LABELS+="linux:host,"
-RUNNER_LABELS+="linux/${_ARCH_LABEL}:host,"
+RUNNER_LABELS="${_ARCH_LABEL}:docker://ubuntu:latest,"
+RUNNER_LABELS+="linux:docker://ubuntu:latest,"
+RUNNER_LABELS+="linux/${_ARCH_LABEL}:docker://ubuntu:latest,"
 RUNNER_LABELS+="node14:docker://node:14,"
 RUNNER_LABELS+="node16:docker://node:16,"
 RUNNER_LABELS+="node18:docker://node:18,"
