@@ -262,7 +262,17 @@ GITEA_USER="${GITEA_USER:-$SERVICE_USER}"
 INSTANCE_HOSTNAME="${GITEA_HOSTNAME:-$HOSTNAME}"
 RUNNERS_START="${RUNNERS_START:-5}"
 RUNNER_CACHE_PORT="${RUNNER_CACHE_PORT:-$SERVICE_PORT}"
-RUNNER_LABELS="linux:host,"
+# Detect host architecture and set arch-specific labels so matrix jobs
+# can target native runners: runs-on: amd64 / runs-on: arm64
+_HOST_ARCH="$(uname -m)"
+case "$_HOST_ARCH" in
+  x86_64)  _ARCH_LABEL="amd64" ;;
+  aarch64) _ARCH_LABEL="arm64" ;;
+  *)       _ARCH_LABEL="$_HOST_ARCH" ;;
+esac
+RUNNER_LABELS="${_ARCH_LABEL}:host,"
+RUNNER_LABELS+="linux:host,"
+RUNNER_LABELS+="linux/${_ARCH_LABEL}:host,"
 RUNNER_LABELS+="node14:docker://node:14,"
 RUNNER_LABELS+="node16:docker://node:16,"
 RUNNER_LABELS+="node18:docker://node:18,"
@@ -284,6 +294,7 @@ RUNNER_LABELS+="redhat:docker://casjaysdev/almalinux:latest,"
 RUNNER_LABELS+="almalinux:docker://casjaysdev/almalinux:latest,"
 RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest,"
 RUNNER_LABELS+="ubuntu-latest:docker://catthehacker/ubuntu:full-latest"
+unset _HOST_ARCH _ARCH_LABEL
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 RUNNER_IP_ADDRESS="${RUNNER_IP_ADDRESS:-$IP4_ADDRESS}"
 RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$ETC_DIR/default_config.yaml}"
