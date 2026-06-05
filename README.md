@@ -10,14 +10,24 @@ A self-hosted Docker image for [Gitea](https://gitea.io) — a lightweight, fast
 
 ```shell
 docker run -d \
-  --restart always \
-  --privileged \
   --name casjaysdevdocker-gitea-latest \
-  --hostname git \
+  --privileged \
+  --restart always \
+  --tty \
+  --cgroupns private \
+  --hostname git.example.com \
+  --domainname example.com \
+  --network bridge \
+  --cap-add CHOWN \
+  --cap-add SYS_TIME \
+  --cap-add SYS_ADMIN \
   -e TZ=America/New_York \
-  -e GITEA_SERVER=git.example.com \
+  -e HOSTNAME=git.example.com \
+  -e GITEA_PROTO=http \
+  -e DATABASE_DIR_SQLITE=/data/db/sqlite \
   -v /srv/docker/gitea/data:/data:z \
   -v /srv/docker/gitea/config:/config:z \
+  -v /srv/docker/databases/sqlite/gitea:/data/db/sqlite:z \
   -p 80:80 \
   -p 22:22 \
   casjaysdevdocker/gitea:latest
@@ -30,16 +40,24 @@ services:
   gitea:
     image: casjaysdevdocker/gitea:latest
     container_name: casjaysdevdocker-gitea-latest
-    hostname: git
+    hostname: git.example.com
+    domainname: example.com
     privileged: true
+    tty: true
     restart: always
+    cap_add:
+      - CHOWN
+      - SYS_TIME
+      - SYS_ADMIN
     environment:
       - TZ=America/New_York
-      - GITEA_SERVER=git.example.com
-      - GITEA_PROTO=https
+      - HOSTNAME=git.example.com
+      - GITEA_PROTO=http
+      - DATABASE_DIR_SQLITE=/data/db/sqlite
     volumes:
       - /srv/docker/gitea/data:/data:z
       - /srv/docker/gitea/config:/config:z
+      - /srv/docker/databases/sqlite/gitea:/data/db/sqlite:z
     ports:
       - 80:80
       - 22:22
@@ -95,6 +113,7 @@ services:
 | `GITEA_SQL_USER` | _(empty)_ | Database user (external DB only) |
 | `GITEA_SQL_PASS` | _(empty)_ | Database password (external DB only) |
 | `GITEA_SQL_NAME` | _(empty)_ | Database name (external DB only) |
+| `DATABASE_DIR_SQLITE` | `$DATA_DIR/db/sqlite` | Override the SQLite database directory (mount a separate volume here to keep the DB outside `/data`) |
 
 **act\_runner**
 
