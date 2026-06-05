@@ -36,31 +36,50 @@ docker run -d \
 ### via docker compose
 
 ```yaml
+# nginx proxy address - http://172.17.0.1:80
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-size: "5m"
+    max-file: "1"
+
 services:
   gitea:
     image: casjaysdevdocker/gitea:latest
+    pull_policy: always
     container_name: casjaysdevdocker-gitea-latest
     hostname: git.example.com
     domainname: example.com
     privileged: true
     tty: true
     restart: always
+    logging: *default-logging
+    cgroupns_mode: private
     cap_add:
       - CHOWN
       - SYS_TIME
       - SYS_ADMIN
     environment:
-      - TZ=America/New_York
-      - HOSTNAME=git.example.com
-      - GITEA_PROTO=http
-      - DATABASE_DIR_SQLITE=/data/db/sqlite
+      TZ: ${TZ:-America/New_York}
+      CONTAINER_NAME: casjaysdevdocker-gitea-latest
+      HOSTNAME: ${BASE_HOST_NAME:-git.example.com}
+      GITEA_PROTO: http
+      DATABASE_DIR_SQLITE: /data/db/sqlite
     volumes:
-      - /srv/docker/gitea/data:/data:z
-      - /srv/docker/gitea/config:/config:z
-      - /srv/docker/databases/sqlite/gitea:/data/db/sqlite:z
+      - ./volumes/data:/data:z
+      - ./volumes/config:/config:z
+      - ./volumes/db/sqlite:/data/db/sqlite:z
     ports:
-      - 80:80
-      - 22:22
+      - "172.17.0.1:80:80"
+      - "172.17.0.1:22:22"
+    networks:
+      - gitea
+
+networks:
+  gitea:
+    name: gitea
+    external: false
 ```
 
 ### Environment variables
