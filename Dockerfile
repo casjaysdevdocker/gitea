@@ -1,14 +1,10 @@
 # Docker image for gitea using the alpine template
 ARG IMAGE_NAME="gitea"
 ARG PHP_SERVER="gitea"
-ARG BUILD_DATE="202511290804"
+ARG BUILD_DATE="202606051822"
 ARG LANGUAGE="en_US.UTF-8"
 ARG TIMEZONE="America/New_York"
 ARG WWW_ROOT_DIR="/usr/local/share/httpd/default"
-ARG DEFAULT_FILE_DIR="/usr/local/share/template-files"
-ARG DEFAULT_DATA_DIR="/usr/local/share/template-files/data"
-ARG DEFAULT_CONF_DIR="/usr/local/share/template-files/config"
-ARG DEFAULT_TEMPLATE_DIR="/usr/local/share/template-files/defaults"
 ARG PATH="/usr/local/etc/docker/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 
 ARG USER="root"
@@ -42,10 +38,6 @@ ARG EXPOSE_PORTS
 ARG BUILD_VERSION
 ARG IMAGE_VERSION
 ARG WWW_ROOT_DIR
-ARG DEFAULT_FILE_DIR
-ARG DEFAULT_DATA_DIR
-ARG DEFAULT_CONF_DIR
-ARG DEFAULT_TEMPLATE_DIR
 ARG DISTRO_VERSION
 ARG NODE_VERSION
 ARG NODE_MANAGER
@@ -54,7 +46,7 @@ ARG PHP_SERVER
 ARG SHELL_OPTS
 ARG PATH
 
-ARG PACK_LIST="curl ca-certificates fuse-overlayfs btrfs-progs xfsprogs e2fsprogs e2fsprogs-extra zfs git ip6tables iptables openssl pigz shadow-uidmap xz docker openssh cgroup-tools "
+ARG PACK_LIST="cgroup-tools fuse-overlayfs btrfs-progs xfsprogs e2fsprogs e2fsprogs-extra zfs git ip6tables iptables openssl pigz shadow-uidmap xz docker openssh "
 
 ENV ENV=~/.profile
 ENV SHELL="/bin/sh"
@@ -72,17 +64,12 @@ COPY ./rootfs/. /
 
 RUN set -e; \
   echo "Updating the system and ensuring bash is installed"; \
-  pkmgr update;pkmgr install bash
+  pkmgr update;pkmgr install bash ca-certificates; \
+  update-ca-certificates
 
 RUN set -e; \
   echo "Setting up prerequisites"; \
-  apk --no-cache add bash; \
-  SH_CMD="$(which sh 2>/dev/null||command -v sh 2>/dev/null)"; \
-  BASH_CMD="$(which bash 2>/dev/null||command -v bash 2>/dev/null)"; \
-  [ -x "$BASH_CMD" ] && symlink "$BASH_CMD" "/bin/sh" || true; \
-  [ -x "$BASH_CMD" ] && symlink "$BASH_CMD" "/usr/bin/sh" || true; \
-  [ -x "$BASH_CMD" ] && [ "$SH_CMD" != "/bin/sh" ] && symlink "$BASH_CMD" "$SH_CMD" || true; \
-  [ -n "$BASH_CMD" ] && sed -i 's|root:x:.*|root:x:0:0:root:/root:'$BASH_CMD'|g' "/etc/passwd" || true
+  true
 
 ENV SHELL="/bin/bash"
 SHELL [ "/bin/bash", "-c" ]
@@ -91,18 +78,13 @@ COPY --from=gosu /usr/local/bin/gosu /usr/local/bin/gosu
 
 RUN echo "Initializing the system"; \
   $SHELL_OPTS; \
-  mkdir -p "${DEFAULT_DATA_DIR}" "${DEFAULT_CONF_DIR}" "${DEFAULT_TEMPLATE_DIR}" "/root/docker/setup" "/etc/profile.d"; \
+  mkdir -p "/root/docker/setup" "/etc/profile.d"; \
   if [ -f "/root/docker/setup/00-init.sh" ];then echo "Running the init script";/root/docker/setup/00-init.sh||{ echo "Failed to execute /root/docker/setup/00-init.sh" >&2 && exit 10; };echo "Done running the init script";fi; \
   echo ""
 
 RUN echo "Creating and editing system files "; \
   $SHELL_OPTS; \
-  rm -Rf "/etc/apk/repositories"; \
-  [ "$DISTRO_VERSION" = "latest" ] && DISTRO_VERSION="edge";[ "$DISTRO_VERSION" = "edge" ] || DISTRO_VERSION="v${DISTRO_VERSION}"; \
-  echo "http://dl-cdn.alpinelinux.org/alpine/${DISTRO_VERSION}/main" >>"/etc/apk/repositories"; \
-  echo "http://dl-cdn.alpinelinux.org/alpine/${DISTRO_VERSION}/community" >>"/etc/apk/repositories"; \
-  if [ "${DISTRO_VERSION}" = "edge" ]; then echo "http://dl-cdn.alpinelinux.org/alpine/${DISTRO_VERSION}/testing" >>"/etc/apk/repositories";fi; \
-  apk update; apk upgrade --no-cache; \
+  [ -f "/root/.profile" ] || touch "/root/.profile"; \
   if [ -f "/root/docker/setup/01-system.sh" ];then echo "Running the system script";/root/docker/setup/01-system.sh||{ echo "Failed to execute /root/docker/setup/01-system.sh" >&2 && exit 10; };echo "Done running the system script";fi; \
   echo ""
 
@@ -146,7 +128,7 @@ RUN echo "Updating system files "; \
 
 RUN echo "Custom Settings"; \
   $SHELL_OPTS; \
-  echo ""
+echo ""
 
 RUN echo "Setting up users and scripts "; \
   $SHELL_OPTS; \
@@ -163,7 +145,7 @@ RUN echo "Setting OS Settings "; \
 
 RUN echo "Custom Applications"; \
   $SHELL_OPTS; \
-  echo ""
+echo ""
 
 RUN echo "Running custom commands"; \
   if [ -f "/root/docker/setup/05-custom.sh" ];then echo "Running the custom script";/root/docker/setup/05-custom.sh||{ echo "Failed to execute /root/docker/setup/05-custom.sh" && exit 10; };echo "Done running the custom script";fi; \
@@ -205,10 +187,6 @@ ARG BUILD_VERSION
 ARG IMAGE_VERSION
 ARG GIT_COMMIT
 ARG WWW_ROOT_DIR
-ARG DEFAULT_FILE_DIR
-ARG DEFAULT_DATA_DIR
-ARG DEFAULT_CONF_DIR
-ARG DEFAULT_TEMPLATE_DIR
 ARG DISTRO_VERSION
 ARG NODE_VERSION
 ARG NODE_MANAGER

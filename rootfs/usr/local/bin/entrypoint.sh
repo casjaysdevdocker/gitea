@@ -7,9 +7,9 @@
 # @@License          :  WTFPL
 # @@ReadME           :  entrypoint.sh --help
 # @@Copyright        :  Copyright: (c) 2026 Jason Hempstead, Casjays Developments
-# @@Created          :  Friday, Jun 05, 2026 17:54 EDT
+# @@Created          :  Friday, Jun 05, 2026 18:14 EDT
 # @@File             :  entrypoint.sh
-# @@Description      :  Entrypoint file for gitea
+# @@Description      :  Entrypoint file for alpine
 # @@Changelog        :  New script
 # @@TODO             :  Better documentation
 # @@Other            :  
@@ -39,7 +39,7 @@ PATH="/usr/local/etc/docker/bin:/usr/local/bin:/usr/bin:/usr/sbin:/bin:/sbin"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set bash options
 SCRIPT_FILE="$0"
-CONTAINER_NAME="gitea"
+CONTAINER_NAME="alpine"
 SCRIPT_NAME="${SCRIPT_FILE##*/}"
 CONTAINER_NAME="${ENV_CONTAINER_NAME:-$CONTAINER_NAME}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
