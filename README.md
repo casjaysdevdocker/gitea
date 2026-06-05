@@ -157,7 +157,7 @@ networks:
 | Port | Protocol | Purpose |
 |------|----------|---------|
 | `80` | TCP | Gitea web UI and API |
-| `22` | TCP | Git over SSH |
+| `22` (internal) / `7833` (default external) | TCP | Git over SSH — host port 22 is typically taken by sshd; map container port 22 to an available host port and set `SSH_PORT` to match |
 
 ### Notes
 
