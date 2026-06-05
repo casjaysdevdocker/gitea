@@ -145,6 +145,15 @@ networks:
 | `RUNNER_CONFIG_NAME` | `act_runner.yaml` | Runner config filename inside `RUNNER_DEFAULT_HOME` |
 | `ACT_RUNNER_FALLBACK_VERSION` | `v1.0.8` | Pinned act\_runner version used if gitea.com is unreachable during build |
 
+**Runner labels** are set automatically based on the host architecture. All jobs run inside Docker containers — no bare-metal execution.
+
+| Host arch | Labels registered |
+|-----------|------------------|
+| `x86_64` | `amd64:docker://ubuntu:latest`, `linux:docker://ubuntu:latest`, `linux/amd64:docker://ubuntu:latest`, + language images |
+| `aarch64` | `arm64:docker://ubuntu:latest`, `linux:docker://ubuntu:latest`, `linux/arm64:docker://ubuntu:latest`, + language images |
+
+Language image labels available on both architectures: `node` (14/16/18/20/22/latest), `perl`, `ruby`, `python`/`python3`, `php`/`php7`/`php8`, `alpine`, `debian`, `ubuntu`, `almalinux`/`rhel`/`redhat`, `ubuntu-latest`.
+
 ### Volumes
 
 | Path | Purpose |
