@@ -287,8 +287,10 @@ __run_precopy() {
 	# Define environment
 	local hostname=${HOSTNAME}
 	[ -d "/run/healthcheck" ] || mkdir -p "/run/healthcheck"
-	# Define actions/commands
-
+	# Re-apply custom resolv.conf — Docker rewrites /etc/resolv.conf asynchronously
+	# during container startup, after the entrypoint's initial copy. Applying it here
+	# (in the init.d phase) ensures it takes effect after Docker finishes network setup.
+	[ -f "/usr/local/etc/resolv.conf" ] && cp -f "/usr/local/etc/resolv.conf" "/etc/resolv.conf" 2>/dev/null || true
 	# allow custom functions
 	if builtin type -t __run_precopy_local | grep -q 'function'; then __run_precopy_local; fi
 }
