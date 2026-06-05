@@ -145,7 +145,7 @@ RUN_DIR="/run/gitea"
 LOG_DIR="/data/logs/gitea"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set the working dir
-WORK_DIR=""
+WORK_DIR="/data/gitea"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # port which service is listening on
 SERVICE_PORT="80"
