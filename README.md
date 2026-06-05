@@ -169,6 +169,91 @@ networks:
 
 ---
 
+## 🏃 Adding external runners
+
+External runners let you add dedicated hardware (e.g. a native ARM64 server) to your Gitea Actions pool without running the full container. Each runner registers directly against your Gitea instance and declares its own labels, so matrix workflows can target it by architecture.
+
+### 1 — Get a registration token
+
+In the Gitea web UI: **Site Administration → Runners → Create Runner Token**
+
+Or via API:
+
+```shell
+curl -s -X POST https://git.example.com/api/v1/user/actions/runners/registration-token \
+  -H "Authorization: token <your-api-token>"
+```
+
+### 2 — Install the act_runner binary
+
+```shell
+# Detect arch
+ARCH=$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/')
+VER=v1.0.8
+
+curl -LSsf "https://gitea.com/gitea/runner/releases/download/${VER}/gitea-runner-${VER#v}-linux-${ARCH}" \
+  -o /usr/local/bin/act_runner
+chmod +x /usr/local/bin/act_runner
+```
+
+### 3 — Register against your Gitea instance
+
+```shell
+act_runner register \
+  --instance https://git.example.com \
+  --token    <registration-token> \
+  --name     "arm64-server" \
+  --labels   "arm64:host,linux/arm64:host,ubuntu:docker://ubuntu:latest,alpine:docker://alpine:latest" \
+  --no-interactive
+```
+
+Label format: `name:type` or `name:type:image`
+- `arm64:host` — runs jobs natively on this machine
+- `ubuntu:docker://ubuntu:latest` — spins a Docker container per job (requires Docker on the host)
+
+### 4 — Run as a systemd service
+
+```ini
+# /etc/systemd/system/act_runner.service
+[Unit]
+Description=Gitea Actions Runner
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/act_runner daemon
+WorkingDirectory=/var/lib/act_runner
+Restart=always
+RestartSec=5
+
+[Install]
+WantedBy=multi-user.target
+```
+
+```shell
+mkdir -p /var/lib/act_runner
+mv .runner /var/lib/act_runner/   # move registration file to working dir
+systemctl daemon-reload
+systemctl enable --now act_runner
+```
+
+### Matrix workflow example
+
+Once both an amd64 and an arm64 runner are registered:
+
+```yaml
+jobs:
+  build:
+    strategy:
+      matrix:
+        arch: [amd64, arm64]
+    runs-on: ${{ matrix.arch }}
+    steps:
+      - uses: actions/checkout@v4
+      - run: uname -m   # confirms native arch
+```
+
+---
+
 ## 🛠️ Development
 
 ### Prerequisites
