@@ -171,7 +171,7 @@ RUN_DIR="/run/act_runner"
 LOG_DIR="/data/logs/act_runner"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Set the working dir
-WORK_DIR=""
+WORK_DIR="/data/act_runner"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # port which service is listening on
 SERVICE_PORT="44015"
