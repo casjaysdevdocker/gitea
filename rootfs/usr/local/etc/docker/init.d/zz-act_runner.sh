@@ -367,12 +367,13 @@ __run_pre_execute_checks() {
 		if [ -f "$RUNNER_CONFIG_DEFAULT" ]; then
 			mkdir -p "$RUNNER_DEFAULT_HOME" "$TMP_DIR/runners/gitea"
 			[ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
-			if [ ! -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -n "$SYS_AUTH_TOKEN" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
+			# Always substitute tokens immediately after copy, regardless of registration state
+			__replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/runners/gitea" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+			__replace "REPLACE_RUNNER_HOME" "$RUNNER_DEFAULT_HOME" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+			__replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+			__replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+			if [ ! -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -n "$SYS_AUTH_TOKEN" ]; then
 				echo "creating gitea runner in $RUNNER_DEFAULT_HOME and registering with http://$INSTANCE_HOSTNAME"
-				__replace "REPLACE_RUNNER_TEMP" "$TMP_DIR/runners/gitea" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
-				__replace "REPLACE_RUNNER_HOME" "$RUNNER_DEFAULT_HOME" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
-				__replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
-				__replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
 				act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://$RUNNER_IP_ADDRESS:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive >>"$RUNNER_LOG_FILE" 2>&1 &
 				echo $! >"$RUN_DIR/act_runner.gitea.pid"
 			fi
