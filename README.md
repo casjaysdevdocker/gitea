@@ -47,26 +47,65 @@ services:
 
 ### Environment variables
 
+**General**
+
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `TZ` | `America/New_York` | Timezone |
-| `GITEA_SERVER` | `hostname -f` | Public FQDN of the Gitea instance — sets ROOT\_URL, DOMAIN, SSH\_DOMAIN, and all email addresses. **Always set this in production.** |
+| `DEBUGGER` | _(empty)_ | Set to `on` to enable shell-level debug tracing |
+
+**Server / domain**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GITEA_SERVER` | `hostname -f` | Public FQDN — sets ROOT\_URL, DOMAIN, SSH\_DOMAIN, and all email addresses. **Always set this in production.** |
+| `GITEA_HOSTNAME` | _(empty)_ | Alias for `GITEA_SERVER` |
+| `FULL_DOMAIN_NAME` | _(empty)_ | Fallback FQDN used when neither `GITEA_SERVER` nor `GITEA_HOSTNAME` is set |
+| `DOMAIN` | _(empty)_ | Overrides the domain used in email addresses (takes precedence over `GITEA_SERVER`) |
 | `GITEA_PROTO` | `http` | Protocol used in ROOT\_URL (`http` or `https`) |
+| `GITEA_PORT` | `80` | Internal port Gitea listens on |
 | `GITEA_NAME` | `SelfHosted GIT Server` | Site title shown in the UI |
+| `GITEA_TZ` | `$TZ` | Override timezone for Gitea specifically |
+| `GITEA_WORK_DIR` | `/data/gitea` | Override Gitea's work path |
+
+**Users**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `GITEA_ROOT_USER_NAME` | _(empty)_ | Initial admin account username (created on first run) |
+| `GITEA_ROOT_PASS_WORD` | _(empty)_ | Initial admin account password |
+| `GITEA_USER_NAME` | _(empty)_ | Initial normal user username |
+| `GITEA_USER_PASS_WORD` | _(empty)_ | Initial normal user password |
+
+**Mail**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `GITEA_ADMIN` | `administrator@<GITEA_SERVER>` | Admin contact / mailer FROM address |
-| `GITEA_EMAIL_RELAY` | `172.17.0.1` | SMTP relay host for outgoing mail |
+| `GITEA_EMAIL_RELAY` | `172.17.0.1` | SMTP relay host |
 | `GITEA_EMAIL_CONFIRM` | `false` | Set to `yes` to require email confirmation and enable the mailer |
+
+**Database**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `GITEA_SQL_TYPE` | `sqlite3` | Database type (`sqlite3`, `mysql`, `postgres`) |
 | `GITEA_SQL_HOST` | `localhost` | Database host (external DB only) |
+| `GITEA_SQL_DB_HOST` | `$GITEA_SQL_HOST` | Alternate database host variable |
 | `GITEA_SQL_USER` | _(empty)_ | Database user (external DB only) |
 | `GITEA_SQL_PASS` | _(empty)_ | Database password (external DB only) |
 | `GITEA_SQL_NAME` | _(empty)_ | Database name (external DB only) |
-| `GITEA_TZ` | `$TZ` | Override timezone for Gitea specifically |
-| `GITEA_PORT` | `80` | Internal port Gitea listens on |
-| `ACT_RUNNER_FALLBACK_VERSION` | `v1.0.8` | Pinned act\_runner version used if gitea.com is unreachable during build |
+
+**act\_runner**
+
+| Variable | Default | Description |
+|----------|---------|-------------|
 | `RUNNERS_START` | `5` | Number of act\_runner instances to register |
-| `DOMAIN` | _(empty)_ | Overrides the domain portion of `SERVER_NAME` (takes precedence over `GITEA_SERVER` for email addresses) |
-| `DEBUGGER` | _(empty)_ | Set to `on` to enable shell-level debug tracing |
+| `RUNNER_CACHE_PORT` | `44015` | Port for the act\_runner cache server |
+| `RUNNER_IP_ADDRESS` | container IP | IP address act\_runner registers with Gitea |
+| `RUNNER_DEFAULT_HOME` | `/config/act_runner/gitea` | Directory where runner registration state is stored |
+| `RUNNER_CONFIG_NAME` | `act_runner.yaml` | Runner config filename inside `RUNNER_DEFAULT_HOME` |
+| `ACT_RUNNER_FALLBACK_VERSION` | `v1.0.8` | Pinned act\_runner version used if gitea.com is unreachable during build |
 
 ### Volumes
 
