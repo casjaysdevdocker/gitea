@@ -832,6 +832,9 @@ elif [ "$SERVICE_NAME" = "sqlite" ] || [ "$DATABASE_SERVICE_TYPE" = "sqlite" ]; 
 	[ -d "$DATABASE_DIR" ] || mkdir -p "$DATABASE_DIR"
 	chmod 777 "$DATABASE_DIR"
 fi
+# Override: gitea always uses a fixed sqlite path under DATA_DIR, not the generic /data/db/sqlite/$SERVER_NAME
+DATABASE_DIR="$DATA_DIR/db/sqlite"
+[ -d "$DATABASE_DIR" ] || mkdir -p "$DATABASE_DIR"
 [ -n "$DATABASE_ADMIN_WWW_ROOT" ] && { [ ! -d "$DATABASE_ADMIN_WWW_ROOT" ] || mkdir -p "${DATABASE_ADMIN_WWW_ROOT}"; }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Allow variables via imports - Overwrite existing
