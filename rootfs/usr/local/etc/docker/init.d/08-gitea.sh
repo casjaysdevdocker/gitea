@@ -266,9 +266,11 @@ if [ -n "$CONTAINER_DEFAULT_DATABASE_TYPE" ]; then
 fi
 GITEA_SQL_TYPE="${ENV_GITEA_SQL_TYPE:-${GITEA_SQL_TYPE:-sqlite3}}"
 HOSTNAME="${GITEA_SERVER:-${GITEA_HOSTNAME:-${FULL_DOMAIN_NAME:-$(hostname -f 2>/dev/null || echo "$HOSTNAME")}}}"
-# Aliases so __initialize_replace_variables can substitute REPLACE_SERVER_NAME and REPLACE_SERVER_PROTO
 SERVER_NAME="${DOMAIN:-$HOSTNAME}"
 SERVER_PROTO="${SERVICE_PROTOCOL:-http}"
+# Feed SERVER_NAME back into FULL_DOMAIN_NAME so __initialize_replace_variables
+# uses DOMAIN (if set) rather than falling back to the raw HOSTNAME.
+export FULL_DOMAIN_NAME="$SERVER_NAME"
 GITEA_SECRET_KEY="${GITEA_SECRET_KEY:-$(__random_password 32)}"
 GITEA_LFS_JWT_SECRET="${GITEA_LFS_JWT_SECRET:-$($EXEC_CMD_BIN generate secret LFS_JWT_SECRET)}"
 GITEA_INTERNAL_TOKEN="${GITEA_INTERNAL_TOKEN:-$($EXEC_CMD_BIN generate secret INTERNAL_TOKEN)}"
@@ -415,10 +417,10 @@ __update_conf_files() {
 	# Re-stamp dynamic values and remove deprecated settings on every startup.
 	for _ini_file in "$CONF_DIR/app.ini"; do
 		[ -f "$_ini_file" ] || continue
-		# Sync ROOT_URL, DOMAIN, and SSH_DOMAIN from current env vars
-		sed -i "s|^ROOT_URL[[:space:]]*=.*|ROOT_URL = ${SERVICE_PROTOCOL:-http}://${HOSTNAME}|" "$_ini_file"
-		sed -i "s|^DOMAIN[[:space:]]*=.*|DOMAIN = ${HOSTNAME}|" "$_ini_file"
-		sed -i "s|^SSH_DOMAIN[[:space:]]*=.*|SSH_DOMAIN = ${HOSTNAME}|" "$_ini_file"
+		# Sync ROOT_URL, DOMAIN, and SSH_DOMAIN — prefer DOMAIN env var over raw hostname
+		sed -i "s|^ROOT_URL[[:space:]]*=.*|ROOT_URL = ${SERVICE_PROTOCOL:-http}://${SERVER_NAME}|" "$_ini_file"
+		sed -i "s|^DOMAIN[[:space:]]*=.*|DOMAIN = ${SERVER_NAME}|" "$_ini_file"
+		sed -i "s|^SSH_DOMAIN[[:space:]]*=.*|SSH_DOMAIN = ${SERVER_NAME}|" "$_ini_file"
 		# Remove deprecated [cors].X_FRAME_OPTIONS (moved to [security] in Gitea v1.26)
 		awk 'BEGIN{in_s=0}/^\[/{in_s=0}/^\[cors\]/{in_s=1}in_s&&/^X_FRAME_OPTIONS/{next}{print}' \
 			"$_ini_file" > /tmp/_gitea_conf.ini && mv /tmp/_gitea_conf.ini "$_ini_file"
