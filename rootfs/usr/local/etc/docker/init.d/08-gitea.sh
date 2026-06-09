@@ -176,7 +176,7 @@ EXEC_CMD_BIN='gitea'
 # command arguments
 EXEC_CMD_ARGS='web '
 # command arguments
-EXEC_CMD_ARGS+='--port $SERVICE_PORT --config $ETC_DIR/app.ini '
+EXEC_CMD_ARGS+='--port $SERVICE_PORT --config $CONF_DIR/app.ini '
 # command arguments
 EXEC_CMD_ARGS+='--custom-path $CONF_DIR/custom --work-path $DATA_DIR '
 # execute script before
@@ -291,10 +291,16 @@ __run_precopy() {
 	# during container startup, after the entrypoint's initial copy. Applying it here
 	# (in the init.d phase) ensures it takes effect after Docker finishes network setup.
 	[ -f "/usr/local/etc/resolv.conf" ] && cp -f "/usr/local/etc/resolv.conf" "/etc/resolv.conf" 2>/dev/null || true
-	# Seed /config/$SERVICE_NAME from the baked /etc copy on first run
-	if [ -d "$ETC_DIR" ] && __is_dir_empty "$CONF_DIR"; then
-		mkdir -p "$CONF_DIR"
-		cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
+	# Seed /config/$SERVICE_NAME from the baked /etc copy on first run,
+	# then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
+	# so both paths always resolve to the same processed config.
+	if [ -d "$ETC_DIR" ] && ! [ -L "$ETC_DIR" ]; then
+		if __is_dir_empty "$CONF_DIR"; then
+			mkdir -p "$CONF_DIR"
+			cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
+		fi
+		rm -Rf "$ETC_DIR"
+		ln -sf "$CONF_DIR" "$ETC_DIR"
 	fi
 	# allow custom functions
 	if builtin type -t __run_precopy_local | grep -q 'function'; then __run_precopy_local; fi
@@ -392,10 +398,7 @@ __update_conf_files() {
 		sed -i "s|REPLACE_GITEA_LFS_JWT_SECRET|$GITEA_LFS_JWT_SECRET|g" "$CONF_DIR/app.ini"
 	fi
 	# Re-stamp dynamic values and remove deprecated settings on every startup.
-	# Applied to both the persistent copy (/config/gitea) and the runtime copy
-	# (/etc/gitea) so Gitea sees the correct values on this boot without needing
-	# a second restart.
-	for _ini_file in "$CONF_DIR/app.ini" "$ETC_DIR/app.ini"; do
+	for _ini_file in "$CONF_DIR/app.ini"; do
 		[ -f "$_ini_file" ] || continue
 		# Sync ROOT_URL, DOMAIN, and SSH_DOMAIN from current env vars
 		sed -i "s|^ROOT_URL[[:space:]]*=.*|ROOT_URL = ${SERVICE_PROTOCOL:-http}://${HOSTNAME}|" "$_ini_file"
@@ -908,13 +911,8 @@ __run_secure_function
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __run_precopy
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Copy /config to /etc
-for config_2_etc in $CONF_DIR $ADDITIONAL_CONFIG_DIRS; do
-	__initialize_system_etc "$config_2_etc" 2>/dev/stderr | tee -p -a "/data/logs/init.txt"
-done
-# - - - - - - - - - - - - - - - - - - - - - - - - -
 # Replace variables
-__initialize_replace_variables "$ETC_DIR" "$CONF_DIR" "$ADDITIONAL_CONFIG_DIRS" "$WWW_ROOT_DIR"
+__initialize_replace_variables "$CONF_DIR" "$ADDITIONAL_CONFIG_DIRS" "$WWW_ROOT_DIR"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 #
 __initialize_database

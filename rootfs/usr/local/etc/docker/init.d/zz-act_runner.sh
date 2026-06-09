@@ -297,13 +297,13 @@ RUNNER_LABELS+="ubuntu-latest:docker://catthehacker/ubuntu:full-latest"
 unset _HOST_ARCH _ARCH_LABEL
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 RUNNER_IP_ADDRESS="${RUNNER_IP_ADDRESS:-$IP4_ADDRESS}"
-RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$ETC_DIR/default_config.yaml}"
+RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$CONF_DIR/default_config.yaml}"
 RUNNER_DEFAULT_HOME="${RUNNER_DEFAULT_HOME:-$CONF_DIR/gitea}"
 RUNNER_CONFIG_NAME="${RUNNER_CONFIG_NAME:-act_runner.yaml}"
 RUNNER_LOG_FILE="${RUNNER_LOG_FILE:-$LOG_DIR/register.log}"
 RUNNER_DAEMON_LOG="${RUNNER_DAEMON_LOG:-$LOG_DIR/daemon.log}"
 RUNNER_CACHE_HOST="${RUNNER_CACHE_HOST:-$IP4_ADDRESS}"
-CACHE_CONFIG_FILE="${CACHE_CONFIG_FILE:-$ETC_DIR/cache_server.yaml}"
+CACHE_CONFIG_FILE="${CACHE_CONFIG_FILE:-$CONF_DIR/cache_server.yaml}"
 CACHE_LOG_FILE="${CACHE_LOG_FILE:-$LOG_DIR/cache.log}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
@@ -333,10 +333,16 @@ __run_precopy() {
 	# Define environment
 	local hostname=${HOSTNAME}
 	[ -d "/run/healthcheck" ] || mkdir -p "/run/healthcheck"
-	# Seed /config/$SERVICE_NAME from the baked /etc copy on first run
-	if [ -d "$ETC_DIR" ] && __is_dir_empty "$CONF_DIR"; then
-		mkdir -p "$CONF_DIR"
-		cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
+	# Seed /config/$SERVICE_NAME from the baked /etc copy on first run,
+	# then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
+	# so both paths always resolve to the same processed config.
+	if [ -d "$ETC_DIR" ] && ! [ -L "$ETC_DIR" ]; then
+		if __is_dir_empty "$CONF_DIR"; then
+			mkdir -p "$CONF_DIR"
+			cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
+		fi
+		rm -Rf "$ETC_DIR"
+		ln -sf "$CONF_DIR" "$ETC_DIR"
 	fi
 	# allow custom functions
 	if builtin type -t __run_precopy_local | grep -q 'function'; then __run_precopy_local; fi
@@ -952,13 +958,8 @@ __run_secure_function
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __run_precopy
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Copy /config to /etc
-for config_2_etc in $CONF_DIR $ADDITIONAL_CONFIG_DIRS; do
-	__initialize_system_etc "$config_2_etc" 2>/dev/stderr | tee -p -a "/data/logs/init.txt"
-done
-# - - - - - - - - - - - - - - - - - - - - - - - - -
 # Replace variables
-__initialize_replace_variables "$ETC_DIR" "$CONF_DIR" "$ADDITIONAL_CONFIG_DIRS" "$WWW_ROOT_DIR"
+__initialize_replace_variables "$CONF_DIR" "$ADDITIONAL_CONFIG_DIRS" "$WWW_ROOT_DIR"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 #
 __initialize_database

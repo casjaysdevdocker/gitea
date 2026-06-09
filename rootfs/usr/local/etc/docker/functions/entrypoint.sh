@@ -417,22 +417,6 @@ __display_user_info() {
   fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-__init_config_etc() {
-  local copy="no"
-  local name="$SERVICE_NAME"
-  local etc_dir="${ETC_DIR:-/etc/$name}"
-  local conf_dir="${CONF_DIR:-/config/$name}"
-  __is_dir_empty "$conf_dir" && copy=yes
-  if [ "$copy" = "yes" ]; then
-    if [ -d "$etc_dir" ]; then
-      mkdir -p "$conf_dir"
-      __copy_templates "$etc_dir/." "$conf_dir/"
-    elif [ -f "$etc_dir" ]; then
-      __copy_templates "$etc_dir" "$conf_dir"
-    fi
-  fi
-  # - - - - - - - - - - - - - - - - - - - - - - - - -
-}
 __create_ssl_cert() {
   local SSL_DIR="${SSL_DIR:-/etc/ssl}"
   [ -f "/config/env/ssl.sh" ] && . "/config/env/ssl.sh"

@@ -178,7 +178,7 @@ EXEC_CMD_ARGS='-H tcp://0.0.0.0:$SERVICE_PORT '
 # command arguments
 EXEC_CMD_ARGS+='-H unix:///var/run/docker.sock '
 # command arguments
-EXEC_CMD_ARGS+='-H unix:///tmp/docker.sock --config-file $ETC_DIR/daemon.json'
+EXEC_CMD_ARGS+='-H unix:///tmp/docker.sock --config-file $CONF_DIR/daemon.json'
 # execute script before
 EXEC_PRE_SCRIPT=''
 # Set to no if the service is not running otherwise leave blank
@@ -263,10 +263,16 @@ __run_precopy() {
 	# Define environment
 	local hostname=${HOSTNAME}
 	[ -d "/run/healthcheck" ] || mkdir -p "/run/healthcheck"
-	# Seed /config/$SERVICE_NAME from the baked /etc copy on first run
-	if [ -d "$ETC_DIR" ] && __is_dir_empty "$CONF_DIR"; then
-		mkdir -p "$CONF_DIR"
-		cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
+	# Seed /config/$SERVICE_NAME from the baked /etc copy on first run,
+	# then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
+	# so both paths always resolve to the same processed config.
+	if [ -d "$ETC_DIR" ] && ! [ -L "$ETC_DIR" ]; then
+		if __is_dir_empty "$CONF_DIR"; then
+			mkdir -p "$CONF_DIR"
+			cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
+		fi
+		rm -Rf "$ETC_DIR"
+		ln -sf "$CONF_DIR" "$ETC_DIR"
 	fi
 	# allow custom functions
 	if builtin type -t __run_precopy_local | grep -q 'function'; then __run_precopy_local; fi
@@ -445,10 +451,6 @@ EOF
 EOF
 			fi
 		fi
-		if [ -f "/config/docker/daemon.json" ] && [ ! -L "/etc/docker/daemon.json" ]; then
-			cp -Rf "/config/docker/daemon.json" "/etc/docker/daemon.json"
-		fi
-		[ -f "$ETC_DIR/daemon.json" ] && sed -i 's|"REPLACE_DOCKER_REGISTRIES"|'$registry'|g' "$ETC_DIR/daemon.json"
 		[ -f "$CONF_DIR/daemon.json" ] && sed -i 's|"REPLACE_DOCKER_REGISTRIES"|'$registry'|g' "$CONF_DIR/daemon.json"
 	}
 	exitStatus=$?
@@ -976,13 +978,8 @@ __run_secure_function
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __run_precopy
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# Copy /config to /etc
-for config_2_etc in $CONF_DIR $ADDITIONAL_CONFIG_DIRS; do
-	__initialize_system_etc "$config_2_etc" 2>/dev/stderr | tee -p -a "/data/logs/init.txt"
-done
-# - - - - - - - - - - - - - - - - - - - - - - - - -
 # Replace variables
-__initialize_replace_variables "$ETC_DIR" "$CONF_DIR" "$ADDITIONAL_CONFIG_DIRS" "$WWW_ROOT_DIR"
+__initialize_replace_variables "$CONF_DIR" "$ADDITIONAL_CONFIG_DIRS" "$WWW_ROOT_DIR"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 #
 __initialize_database
