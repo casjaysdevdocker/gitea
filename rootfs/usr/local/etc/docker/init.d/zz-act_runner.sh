@@ -333,8 +333,11 @@ __run_precopy() {
 	# Define environment
 	local hostname=${HOSTNAME}
 	[ -d "/run/healthcheck" ] || mkdir -p "/run/healthcheck"
-	# Define actions/commands
-
+	# Seed /config/$SERVICE_NAME from the baked /etc copy on first run
+	if [ -d "$ETC_DIR" ] && __is_dir_empty "$CONF_DIR"; then
+		mkdir -p "$CONF_DIR"
+		cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
+	fi
 	# allow custom functions
 	if builtin type -t __run_precopy_local | grep -q 'function'; then __run_precopy_local; fi
 }
@@ -915,9 +918,6 @@ __file_exists_with_content "${ROOT_FILE_PREFIX}/db_pass_root" && DATABASE_PASS_R
 sysname="${SERVER_NAME:-${FULL_DOMAIN_NAME:-$HOSTNAME}}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __create_service_env
-# - - - - - - - - - - - - - - - - - - - - - - - - -
-# Setup /config directories
-__init_config_etc
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # pre-run function
 __execute_prerun
