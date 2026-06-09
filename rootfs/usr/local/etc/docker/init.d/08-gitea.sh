@@ -237,12 +237,15 @@ user_pass="${GITEA_USER_PASS_WORD:-}"
 
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
-DATABASE_DIR="$DATA_DIR/db/sqlite"
+DATABASE_DIR="${DATABASE_DIR_SQLITE:-$DATA_DIR/db/sqlite}"
 GITEA_SQL_NAME="${GITEA_SQL_NAME:-}"
 GITEA_SQL_HOST="${GITEA_SQL_HOST:-localhost}"
 GITEA_WORK_DIR="${GITEA_WORK_DIR:-$WORK_DIR}"
 TZ="${GITEA_TZ:-${TZ:-America/New_York}}"
-SERVICE_PROTOCOL="${GITEA_PROTO:-$SERVICE_PROTOCOL}"
+# Map container-generic protocol env vars to SERVICE_PROTOCOL
+SERVICE_PROTOCOL="${GITEA_PROTO:-${CONTAINER_PROTOCOL:-${CONTAINER_WEB_SERVER_PROTOCOL:-${SERVICE_PROTOCOL:-http}}}}"
+# Map container-generic port env vars to SERVICE_PORT
+SERVICE_PORT="${WEB_PORT:-${ENV_PORTS:-${SERVICE_PORT:-80}}}"
 EMAIL_RELAY="${GITEA_EMAIL_RELAY:-${EMAIL_RELAY:-172.17.0.1}}"
 SERVER_SITE_TITLE="${GITEA_NAME:-${SERVER_SITE_TITLE:-SelfHosted GIT Server}}"
 SERVER_ADMIN="${GITEA_ADMIN:-${SERVER_ADMIN:-administrator@${HOSTNAME}}}"
@@ -251,6 +254,16 @@ GITEA_EMAIL_CONFIRM="${GITEA_EMAIL_CONFIRM:-false}"
 GITEA_SQL_DB_HOST="${GITEA_SQL_DB_HOST:-localhost}"
 GITEA_SQL_USER="${ENV_GITEA_SQL_USER:-$GITEA_SQL_USER}"
 GITEA_SQL_PASS="${ENV_GITEA_SQL_PASS:-$GITEA_SQL_PASS}"
+# Map CONTAINER_DEFAULT_DATABASE_TYPE to gitea's DB_TYPE value
+if [ -n "$CONTAINER_DEFAULT_DATABASE_TYPE" ]; then
+    DATABASE_SERVICE_TYPE="$CONTAINER_DEFAULT_DATABASE_TYPE"
+    case "$CONTAINER_DEFAULT_DATABASE_TYPE" in
+        sqlite|sqlite3) GITEA_SQL_TYPE="${GITEA_SQL_TYPE:-sqlite3}" ;;
+        postgres|postgresql) GITEA_SQL_TYPE="${GITEA_SQL_TYPE:-postgres}" ;;
+        mysql|mariadb) GITEA_SQL_TYPE="${GITEA_SQL_TYPE:-mysql}" ;;
+        mssql) GITEA_SQL_TYPE="${GITEA_SQL_TYPE:-mssql}" ;;
+    esac
+fi
 GITEA_SQL_TYPE="${ENV_GITEA_SQL_TYPE:-${GITEA_SQL_TYPE:-sqlite3}}"
 HOSTNAME="${GITEA_SERVER:-${GITEA_HOSTNAME:-${FULL_DOMAIN_NAME:-$(hostname -f 2>/dev/null || echo "$HOSTNAME")}}}"
 # Aliases so __initialize_replace_variables can substitute REPLACE_SERVER_NAME and REPLACE_SERVER_PROTO
@@ -261,7 +274,7 @@ GITEA_LFS_JWT_SECRET="${GITEA_LFS_JWT_SECRET:-$($EXEC_CMD_BIN generate secret LF
 GITEA_INTERNAL_TOKEN="${GITEA_INTERNAL_TOKEN:-$($EXEC_CMD_BIN generate secret INTERNAL_TOKEN)}"
 GITEA_RANDOM_COOKIE_KEY="${GITEA_RANDOM_COOKIE_KEY:-$(__random_password 16)}"
 [ "$GITEA_EMAIL_CONFIRM" = "yes" ] && GITEA_EMAIL_CONFIRM="true"
-export CUSTOM_PATH="$ETC_DIR" WORK_DIR="${GITEA_WORK_DIR:-$DATA_DIR}"
+export CUSTOM_PATH="$CONF_DIR/custom" WORK_DIR="${GITEA_WORK_DIR:-$DATA_DIR}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Specifiy custom directories to be created
 ADD_APPLICATION_FILES=""
