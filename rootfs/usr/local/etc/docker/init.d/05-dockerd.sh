@@ -267,7 +267,7 @@ __run_precopy() {
 	# then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
 	# so both paths always resolve to the same processed config.
 	if [ -d "$ETC_DIR" ] && ! [ -L "$ETC_DIR" ]; then
-		if [ ! -f "$CONF_DIR/daemon.json" ]; then
+		if [ ! -f "$CONF_DIR/daemon.json" ] || grep -q "REPLACE_" "$CONF_DIR/daemon.json" 2>/dev/null; then
 			mkdir -p "$CONF_DIR"
 			cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
 		fi

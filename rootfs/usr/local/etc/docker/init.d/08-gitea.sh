@@ -304,11 +304,12 @@ __run_precopy() {
 	# during container startup, after the entrypoint's initial copy. Applying it here
 	# (in the init.d phase) ensures it takes effect after Docker finishes network setup.
 	[ -f "/usr/local/etc/resolv.conf" ] && cp -f "/usr/local/etc/resolv.conf" "/etc/resolv.conf" 2>/dev/null || true
-	# Seed /config/$SERVICE_NAME from the baked /etc copy if app.ini is missing,
+	# Seed /config/$SERVICE_NAME from the baked /etc copy if app.ini is missing
+	# or still contains unprocessed REPLACE_ tokens from a previous broken run,
 	# then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
 	# so both paths always resolve to the same processed config.
 	if [ -d "$ETC_DIR" ] && ! [ -L "$ETC_DIR" ]; then
-		if [ ! -f "$CONF_DIR/app.ini" ]; then
+		if [ ! -f "$CONF_DIR/app.ini" ] || grep -q "REPLACE_" "$CONF_DIR/app.ini" 2>/dev/null; then
 			mkdir -p "$CONF_DIR"
 			cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
 		fi
