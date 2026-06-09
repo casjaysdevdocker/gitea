@@ -267,7 +267,7 @@ __run_precopy() {
 	# then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
 	# so both paths always resolve to the same processed config.
 	if [ -d "$ETC_DIR" ] && ! [ -L "$ETC_DIR" ]; then
-		if [ ! -f "$CONF_DIR/daemon.json" ] || grep -q "REPLACE_" "$CONF_DIR/daemon.json" 2>/dev/null; then
+		if [ ! -f "$CONF_DIR/.initialized" ]; then
 			mkdir -p "$CONF_DIR"
 			cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
 		fi
@@ -491,6 +491,8 @@ __update_conf_files() {
 	# define actions
 	symlink "$DATA_DIR" "/var/lib/docker"
 	chmod 777 "$DATA_DIR" "/var/lib/docker"
+	# Mark config as fully initialised so __run_precopy skips re-seeding on restart
+	touch "$CONF_DIR/.initialized" 2>/dev/null || true
 	# allow custom functions
 	if builtin type -t __update_conf_files_local | grep -q 'function'; then __update_conf_files_local; fi
 	# exit function

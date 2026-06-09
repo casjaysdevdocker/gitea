@@ -304,12 +304,13 @@ __run_precopy() {
 	# during container startup, after the entrypoint's initial copy. Applying it here
 	# (in the init.d phase) ensures it takes effect after Docker finishes network setup.
 	[ -f "/usr/local/etc/resolv.conf" ] && cp -f "/usr/local/etc/resolv.conf" "/etc/resolv.conf" 2>/dev/null || true
-	# Seed /config/$SERVICE_NAME from the baked /etc copy if app.ini is missing
-	# or still contains unprocessed REPLACE_ tokens from a previous broken run,
-	# then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
+	# Seed /config/$SERVICE_NAME from the baked /etc copy on first initialisation only.
+	# The marker file $CONF_DIR/.initialized is written after substitution completes;
+	# delete it to force a re-seed (e.g. after intentional config reset).
+	# Then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
 	# so both paths always resolve to the same processed config.
 	if [ -d "$ETC_DIR" ] && ! [ -L "$ETC_DIR" ]; then
-		if [ ! -f "$CONF_DIR/app.ini" ] || grep -q "REPLACE_" "$CONF_DIR/app.ini" 2>/dev/null; then
+		if [ ! -f "$CONF_DIR/.initialized" ]; then
 			mkdir -p "$CONF_DIR"
 			cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
 		fi
@@ -434,6 +435,8 @@ __update_conf_files() {
 		chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATA_DIR" 2>/dev/null
 	fi
 	[ -d "$DATABASE_DIR" ] && chown -Rf $SERVICE_USER:$SERVICE_GROUP "$DATABASE_DIR" 2>/dev/null
+	# Mark config as fully initialised so __run_precopy skips re-seeding on restart
+	touch "$CONF_DIR/.initialized" 2>/dev/null || true
 
 	# allow custom functions
 	if builtin type -t __update_conf_files_local | grep -q 'function'; then __update_conf_files_local; fi
