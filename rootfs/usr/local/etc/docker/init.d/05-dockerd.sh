@@ -263,11 +263,11 @@ __run_precopy() {
 	# Define environment
 	local hostname=${HOSTNAME}
 	[ -d "/run/healthcheck" ] || mkdir -p "/run/healthcheck"
-	# Seed /config/$SERVICE_NAME from the baked /etc copy on first run,
+	# Seed /config/$SERVICE_NAME from the baked /etc copy if daemon.json is missing,
 	# then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
 	# so both paths always resolve to the same processed config.
 	if [ -d "$ETC_DIR" ] && ! [ -L "$ETC_DIR" ]; then
-		if __is_dir_empty "$CONF_DIR"; then
+		if [ ! -f "$CONF_DIR/daemon.json" ]; then
 			mkdir -p "$CONF_DIR"
 			cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
 		fi
