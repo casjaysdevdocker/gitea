@@ -47,18 +47,33 @@ __log "Starting $RUNNERS_START act_runner instance(s)"
 __log "Server Address: $SERVER_ADDRESS"
 __log "Runner Name Prefix: ${RUNNER_NAME_PREFIX:-runner}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Shared cache config so runner-N instances use the same cache-server
+# started by zz-act_runner.sh instead of an unshared per-process cache.
+RUNNERS_CACHE_CONFIG=""
+if [ -n "$RUNNER_CACHE_HOST" ] && [ -n "$RUNNER_CACHE_PORT" ] && [ -n "$RUNNER_CACHE_SECRET" ]; then
+	RUNNERS_CACHE_CONFIG="/config/act_runner/runners-cache.yaml"
+	cat <<EOF >"$RUNNERS_CACHE_CONFIG"
+cache:
+  enabled: true
+  external_server: 'http://${RUNNER_CACHE_HOST}:${RUNNER_CACHE_PORT}/'
+  external_secret: '${RUNNER_CACHE_SECRET}'
+EOF
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Register a single runner synchronously (no daemon start)
 __register_runner() {
 	local runner_id=$1
 	local runner_name="${RUNNER_NAME_PREFIX:-runner}-${runner_id}"
 	local runner_dir="/config/act_runner/reg/${runner_name}"
+	local config_args=()
 
 	mkdir -p "$runner_dir"
 	[ -d "$runner_dir" ] && cd "$runner_dir" || return 1
+	[ -n "$RUNNERS_CACHE_CONFIG" ] && config_args=(--config "$RUNNERS_CACHE_CONFIG")
 
 	if [ ! -f "$runner_dir/.runner" ]; then
 		__log "Registering runner: $runner_name (ID: $runner_id)"
-		act_runner register --instance "$SERVER_ADDRESS" --token "$SERVER_TOKEN" --name "$runner_name" --labels "$RUNNER_LABELS" --no-interactive
+		act_runner register "${config_args[@]}" --instance "$SERVER_ADDRESS" --token "$SERVER_TOKEN" --name "$runner_name" --labels "$RUNNER_LABELS" --no-interactive
 		if [ $? -ne 0 ]; then
 			__log "ERROR: Failed to register runner $runner_name"
 			return 1
@@ -72,10 +87,12 @@ __start_runner_daemon() {
 	local runner_id=$1
 	local runner_name="${RUNNER_NAME_PREFIX:-runner}-${runner_id}"
 	local runner_dir="/config/act_runner/reg/${runner_name}"
+	local config_args=()
 
 	[ -d "$runner_dir" ] && cd "$runner_dir" || return 1
+	[ -n "$RUNNERS_CACHE_CONFIG" ] && config_args=(--config "$RUNNERS_CACHE_CONFIG")
 	__log "Starting daemon for runner: $runner_name"
-	exec act_runner daemon
+	exec act_runner daemon "${config_args[@]}"
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Phase 1: register all runners sequentially so IDs are assigned in order

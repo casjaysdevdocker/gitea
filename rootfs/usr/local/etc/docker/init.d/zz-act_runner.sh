@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202606261600-git
+##@Version           :  202608031200-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
 # @@License          :  LICENSE.md
@@ -138,6 +138,26 @@ __gen_auth_token() {
 		exitCode=0
 		echo "$auth_token"
 		echo "$auth_token" >"$CONF_DIR/tokens/system"
+	fi
+	return $exitCode
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+# shared secret between the runner(s) and the standalone cache-server
+__gen_cache_secret() {
+	local secret token_dir exitCode
+	exitCode=1
+	token_dir="$CONF_DIR/tokens"
+	mkdir -p "$token_dir" >/dev/null 2>&1
+	if [ -n "$RUNNER_CACHE_SECRET" ]; then
+		secret="$RUNNER_CACHE_SECRET"
+	elif [ -s "$token_dir/cache_secret" ]; then
+		secret="$(<"$token_dir/cache_secret")"
+	fi
+	[ -z "$secret" ] && secret="$(__random_password 32)"
+	if [ -n "$secret" ]; then
+		exitCode=0
+		echo "$secret"
+		echo "$secret" >"$token_dir/cache_secret"
 	fi
 	return $exitCode
 }
@@ -305,6 +325,7 @@ RUNNER_DAEMON_LOG="${RUNNER_DAEMON_LOG:-$LOG_DIR/daemon.log}"
 RUNNER_CACHE_HOST="${RUNNER_CACHE_HOST:-$IP4_ADDRESS}"
 CACHE_CONFIG_FILE="${CACHE_CONFIG_FILE:-$CONF_DIR/cache_server.yaml}"
 CACHE_LOG_FILE="${CACHE_LOG_FILE:-$LOG_DIR/cache.log}"
+RUNNER_CACHE_SECRET="${RUNNER_CACHE_SECRET:-}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
 
@@ -384,6 +405,7 @@ __run_pre_execute_checks() {
 		[ -d "$DATA_DIR/cache" ] || mkdir -p "$DATA_DIR/cache"
 		[ -d "$CONF_DIR/tokens" ] || mkdir -p "$CONF_DIR/tokens"
 		SYS_AUTH_TOKEN="${SYS_AUTH_TOKEN:-$(__gen_auth_token)}"
+		RUNNER_CACHE_SECRET="${RUNNER_CACHE_SECRET:-$(__gen_cache_secret)}"
 		if [ -f "$RUNNER_CONFIG_DEFAULT" ]; then
 			mkdir -p "$RUNNER_DEFAULT_HOME" "$TMP_DIR/runners/gitea"
 			[ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ] || copy "$RUNNER_CONFIG_DEFAULT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
@@ -392,6 +414,7 @@ __run_pre_execute_checks() {
 			__replace "REPLACE_RUNNER_HOME" "$RUNNER_DEFAULT_HOME" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
 			__replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
 			__replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
+			__replace "REPLACE_RUNNER_CACHE_SECRET" "$RUNNER_CACHE_SECRET" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
 			if [ ! -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -n "$SYS_AUTH_TOKEN" ]; then
 				echo "creating gitea runner in $RUNNER_DEFAULT_HOME and registering with http://$INSTANCE_HOSTNAME"
 				act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://$RUNNER_IP_ADDRESS:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive >>"$RUNNER_LOG_FILE" 2>&1 &
@@ -485,6 +508,8 @@ __post_execute() {
 	local postMessageEnd="Finished post commands for $SERVICE_NAME"
 	export RUNNERS_START="${RUNNERS_START:-5}" RUNNER_LABELS RUNNERS_LOG_DIR="$LOG_DIR"
 	export SERVER_ADDRESS="$RUNNER_IP_ADDRESS:$GITEA_PORT" SERVER_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
+	export RUNNER_CACHE_HOST RUNNER_CACHE_PORT
+	export RUNNER_CACHE_SECRET="${RUNNER_CACHE_SECRET:-$(__gen_cache_secret)}"
 
 	# wait
 	sleep $waitTime
@@ -512,6 +537,7 @@ __post_execute() {
 			mkdir -p "$DATA_DIR/cache"
 			__replace "REPLACE_RUNNER_CACHE_DIR" "$DATA_DIR/cache" "$CACHE_CONFIG_FILE"
 			__replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$CACHE_CONFIG_FILE"
+			__replace "REPLACE_RUNNER_CACHE_SECRET" "$RUNNER_CACHE_SECRET" "$CACHE_CONFIG_FILE"
 			act_runner cache-server --config "$CACHE_CONFIG_FILE" 2>>/dev/stderr >>"$CACHE_LOG_FILE" &
 			execPid=$!
 			sleep 5

@@ -66,4 +66,6 @@ container:
   docker_host: ''
 
 cache:
-  enabled: false
+  enabled: true
+  external_server: 'http://REPLACE_RUNNER_CACHE_HOST:REPLACE_RUNNER_CACHE_PORT/'
+  external_secret: 'REPLACE_RUNNER_CACHE_SECRET'
