@@ -42,6 +42,20 @@ Needs syncing back to the upstream template per AI.md's runbook.
   entirely (`Command error: unknown command: /config/gitea/app.ini`). Fixed by replacing the
   `[ -z "$input" ]` check with `[[ "$input" =~ [^[:space:]] ]] || return 0`.
 
+## App-breaking bug fixed — missing /config/env directory (bin/entrypoint.sh)
+
+- `/config/env` directory was never explicitly created. It only came into existence as a side
+  effect of `__create_env_file()` (functions/entrypoint.sh) copying
+  `/usr/local/etc/docker/env/default.sample` into it — but that sample file/dir does not exist in
+  this image's rootfs, so `__create_env_file()` returns early (line 960) without creating the
+  directory. `05-dockerd.sh`'s `__create_service_env()` then fails writing
+  `/config/env/docker.local.sh` directly (`cat <<'EOF' >"/config/env/....local.sh"`, no `tee`
+  suppression) with `No such file or directory`; `zz-act_runner.sh` hits the same error writing
+  `/config/env/act_runner.local.sh`. Fixed by adding
+  `mkdir -p "/config/env" 2>/dev/null || true` alongside the other `/config/*` directory creation
+  lines (~line 241) in `rootfs/usr/local/bin/entrypoint.sh`. Needs syncing to the upstream
+  template per AI.md's runbook.
+
 ## Other observations not yet actioned
 
 - `.gitea/workflows/docker.yaml` uses the same stale/unpinned action pattern (`@v2`-`@v4`, DockerHub-only, `catthehacker/ubuntu:act-latest`) that was removed from the `opengist` repo's duplicate workflow — no `build.yml` counterpart exists here yet.

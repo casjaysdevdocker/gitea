@@ -240,6 +240,7 @@ mkdir -p "/data/logs" 2>/dev/null || true
 mkdir -p "/run/init.d" 2>/dev/null || true
 mkdir -p "/config/enable" 2>/dev/null || true
 mkdir -p "/config/secure" 2>/dev/null || true
+mkdir -p "/config/env" 2>/dev/null || true
 mkdir -p "/usr/local/etc/docker/exec" 2>/dev/null || true
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # create required files
