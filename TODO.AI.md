@@ -11,6 +11,16 @@ Not fixed yet — out of scope for the cache-enablement change; flagged by `scri
   - line 4: `##@Version` header present but no matching `VERSION=` assignment in script body
   - missing `--` before the grep query at lines 124 (x2), 130, 133, 134, 369, 390, 401, 438, 468, 525 (x2), 544 (x2, also should quote the `grep` pattern), 571, 583
 
+## App-breaking bug fixed — DEBUGGER guard pattern under set -e (functions/entrypoint.sh)
+
+Needs syncing back to the upstream template in `casjay-dotfiles/scripts` per the Docker Template
+Update Runbook in AI.md — `functions/entrypoint.sh` is normally regenerated, not hand-edited.
+
+- 26x occurrences of `[ "$DEBUGGER" = "on" ] && echo/printf/__service_banner "..."` used as a bare
+  statement: under `set -e`, this aborts the whole script silently whenever `$DEBUGGER` != "on"
+  (the default). This was the root cause of the container dying immediately after printing only
+  the startup banner. Fixed by appending `|| true` to all 26 occurrences.
+
 ## Other observations not yet actioned
 
 - `.gitea/workflows/docker.yaml` uses the same stale/unpinned action pattern (`@v2`-`@v4`, DockerHub-only, `catthehacker/ubuntu:act-latest`) that was removed from the `opengist` repo's duplicate workflow — no `build.yml` counterpart exists here yet.

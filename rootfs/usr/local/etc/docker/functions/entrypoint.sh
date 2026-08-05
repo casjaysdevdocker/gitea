@@ -35,7 +35,7 @@ fi
 __remove_extra_spaces() { sed -E 's/  +/ /g; s|^ ||'; }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __log_debug() {
-  [ "$DEBUGGER" = "on" ] && echo "[DEBUG] $*" >&2
+  [ "$DEBUGGER" = "on" ] && echo "[DEBUG] $*" >&2 || true
 }
 __log_info() {
   echo "[INFO] $*"
@@ -62,7 +62,7 @@ __printf_space() {
 __mkdir() {
   if [ -n "$1" ]; then
     if ! mkdir -p "$@" 2>/dev/null; then
-      [ "$DEBUGGER" = "on" ] && echo "Warning: Failed to create directory: $*" >&2
+      [ "$DEBUGGER" = "on" ] && echo "Warning: Failed to create directory: $*" >&2 || true
       return 1
     fi
   fi
@@ -71,7 +71,7 @@ __mkdir() {
 __rm() {
   if [ -n "$1" ] && [ -e "$1" ]; then
     if ! rm -Rf "${1:?}" 2>/dev/null; then
-      [ "$DEBUGGER" = "on" ] && echo "Warning: Failed to remove: $1" >&2
+      [ "$DEBUGGER" = "on" ] && echo "Warning: Failed to remove: $1" >&2 || true
       return 1
     fi
   fi
@@ -80,7 +80,7 @@ __rm() {
 __grep_test() { grep -sh "$1" "$2" 2>/dev/null | grep -qwF "${3:-$1}"; }
 __netstat() {
   command -v netstat &>/dev/null || {
-    [ "$DEBUGGER" = "on" ] && echo "Warning: netstat command not found" >&2
+    [ "$DEBUGGER" = "on" ] && echo "Warning: netstat command not found" >&2 || true
     return 10
   }
   netstat "$@" 2>/dev/null
@@ -171,7 +171,7 @@ __is_running() {
 }
 __get_pid() {
   if [ -z "$1" ]; then
-    [ "$DEBUGGER" = "on" ] && echo "Warning: __get_pid called without process name" >&2
+    [ "$DEBUGGER" = "on" ] && echo "Warning: __get_pid called without process name" >&2 || true
     return 1
   fi
   local pid
@@ -180,7 +180,7 @@ __get_pid() {
     echo "$pid"
     return 0
   fi
-  [ "$DEBUGGER" = "on" ] && echo "Debug: No PID found for process: $1" >&2
+  [ "$DEBUGGER" = "on" ] && echo "Debug: No PID found for process: $1" >&2 || true
   return 1
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -368,7 +368,7 @@ __init_working_dir() {
   # cd to dir
   __cd "${workdir:-$home}"
   # - - - - - - - - - - - - - - - - - - - - - - - - -
-  [ "$DEBUGGER" = "on" ] && echo "Setting the working directory to: $PWD"
+  [ "$DEBUGGER" = "on" ] && echo "Setting the working directory to: $PWD" || true
   # - - - - - - - - - - - - - - - - - - - - - - - - -
   export WORK_DIR="$workdir" HOME="$home"
 }
@@ -376,7 +376,7 @@ __init_working_dir() {
 __exec_service() {
   local count=6
   local bgpid
-  [ "$DEBUGGER" = "on" ] && echo "Starting $1"
+  [ "$DEBUGGER" = "on" ] && echo "Starting $1" || true
   eval "$@" &
   bgpid=$!
   while [ $count -ne 0 ]; do
@@ -607,7 +607,7 @@ __cron() {
   [ -d "/run/cron" ] || mkdir -p "/run/cron"
   echo "$pid" >"/run/cron/$bin.pid"
   echo "$command" >"/run/cron/$bin.run"
-  [ "$DEBUGGER" = "on" ] && echo "Log is saved to /data/logs/cron.log"
+  [ "$DEBUGGER" = "on" ] && echo "Log is saved to /data/logs/cron.log" || true
   # eval is intentional: $command is operator-controlled input from this container's init
   while :; do
     eval "$command"
@@ -645,7 +645,7 @@ __symlink() {
   [ "$from" = "$to" ] && return 0
   __rm "$from"
   [ -d "${from%/*}" ] || mkdir -p "${from%/*}" 2>/dev/null
-  ln -sf "$to" "$from" && [ "$DEBUGGER" = "on" ] && echo "Created symlink: $from -> $to"
+  ln -sf "$to" "$from" && [ "$DEBUGGER" = "on" ] && echo "Created symlink: $from -> $to" || true
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __file_copy() {
@@ -657,7 +657,7 @@ __file_copy() {
     if [ -n "$from" ] && [ -e "$from" ] && [ -n "$dest" ]; then
       if [ -d "$from" ]; then
         if cp -Rf "$from/." "$dest/" &>/dev/null; then
-          [ "$DEBUGGER" = "on" ] && printf '%s\n' "Copied: $from > $dest"
+          [ "$DEBUGGER" = "on" ] && printf '%s\n' "Copied: $from > $dest" || true
           return 0
         else
           printf '%s\n' "Copy failed: $from < $dest" >&2
@@ -665,7 +665,7 @@ __file_copy() {
         fi
       else
         if cp -Rf "$from" "$dest" &>/dev/null; then
-          [ "$DEBUGGER" = "on" ] && printf '%s\n' "Copied: $from > $dest"
+          [ "$DEBUGGER" = "on" ] && printf '%s\n' "Copied: $from > $dest" || true
           return 0
         else
           printf '%s\n' "Copy failed: $from < $dest" >&2
@@ -703,7 +703,7 @@ __setup_directories() {
     __initialize_www_root
     mkdir -p "$WWW_ROOT_DIR" 2>/dev/null
     find "$WWW_ROOT_DIR" -type d -exec chmod -f 777 {} \; 2>/dev/null
-    [ "$DEBUGGER" = "on" ] && echo "Created directory $WWW_ROOT_DIR"
+    [ "$DEBUGGER" = "on" ] && echo "Created directory $WWW_ROOT_DIR" || true
   fi
   # Setup DATABASE_DIR
   if [ "$IS_DATABASE_SERVICE" = "yes" ] || [ "$USES_DATABASE_SERVICE" = "yes" ]; then
@@ -711,7 +711,7 @@ __setup_directories() {
     if __is_dir_empty "$DATABASE_DIR" || [ ! -d "$DATABASE_DIR" ]; then
       mkdir -p "$DATABASE_DIR" 2>/dev/null
       chmod -f 777 "$DATABASE_DIR" 2>/dev/null
-      [ "$DEBUGGER" = "on" ] && echo "Created directory $DATABASE_DIR"
+      [ "$DEBUGGER" = "on" ] && echo "Created directory $DATABASE_DIR" || true
     fi
   fi
   # create default directories
@@ -719,7 +719,7 @@ __setup_directories() {
     if [ -n "$filedirs" ] && [ ! -d "$filedirs" ]; then
       mkdir -p "$filedirs" 2>/dev/null
       chmod -f 777 "$filedirs" 2>/dev/null
-      [ "$DEBUGGER" = "on" ] && echo "Created directory $filedirs"
+      [ "$DEBUGGER" = "on" ] && echo "Created directory $filedirs" || true
     fi
   done
   # create default files
@@ -727,7 +727,7 @@ __setup_directories() {
     if [ -n "$application_files" ] && [ ! -e "$application_files" ]; then
       touch "$application_files" 2>/dev/null
       chmod -Rf 777 "$application_files" 2>/dev/null
-      [ "$DEBUGGER" = "on" ] && echo "Created file $application_files"
+      [ "$DEBUGGER" = "on" ] && echo "Created file $application_files" || true
     fi
   done
 }
@@ -742,7 +742,7 @@ __fix_permissions() {
       for permissions in $ADD_APPLICATION_DIRS $APPLICATION_DIRS; do
         if [ -n "$permissions" ] && [ -e "$permissions" ]; then
           chown -Rf "$change_user" "$permissions" 2>/dev/null
-          [ "$DEBUGGER" = "on" ] && echo "Changed ownership of $permissions to $change_user"
+          [ "$DEBUGGER" = "on" ] && echo "Changed ownership of $permissions to $change_user" || true
         fi
       done
     fi
@@ -752,7 +752,7 @@ __fix_permissions() {
       for permissions in $ADD_APPLICATION_DIRS $APPLICATION_DIRS; do
         if [ -n "$permissions" ] && [ -e "$permissions" ]; then
           chgrp -Rf "$change_group" "$permissions" 2>/dev/null
-          [ "$DEBUGGER" = "on" ] && echo "Changed group of $permissions to $change_group"
+          [ "$DEBUGGER" = "on" ] && echo "Changed group of $permissions to $change_group" || true
         fi
       done
     fi
@@ -1002,7 +1002,7 @@ __start_init_scripts() {
 
   # Clean stale PID files from previous runs
   if [ ! -f "/run/.start_init_scripts.pid" ]; then
-    [ "$DEBUGGER" = "on" ] && echo "Cleaning stale PID files from previous container run"
+    [ "$DEBUGGER" = "on" ] && echo "Cleaning stale PID files from previous container run" || true
     rm -f /run/*.pid /run/init.d/*.pid 2>/dev/null || true
   fi
 
@@ -1030,7 +1030,7 @@ __start_init_scripts() {
           touch "$pidFile"
           name="${init##*/}"
           service="${name#*-}"; service="${service%.sh}"
-          [ "$DEBUGGER" = "on" ] && __service_banner "🔧" "Executing service script:" "${init##*/}"
+          [ "$DEBUGGER" = "on" ] && __service_banner "🔧" "Executing service script:" "${init##*/}" || true
           # Execute the init script and capture the exit code (subshell isolates exit calls)
           if ( source "$init" ); then
             # Check if service was disabled first
@@ -1180,7 +1180,7 @@ EOF
       if [ ! -e "/usr/sbin/sendmail" ] && command -v msmtp &>/dev/null; then
         __symlink "/usr/sbin/sendmail" "$(command -v msmtp)"
       fi
-      [ "$DEBUGGER" = "on" ] && echo "Done setting up msmtp"
+      [ "$DEBUGGER" = "on" ] && echo "Done setting up msmtp" || true
     fi
 
   ################# sSMTP relay setup
@@ -1221,7 +1221,7 @@ EOF
         __symlink "/etc/ssmtp/revaliases" "/config/ssmtp/revaliases"
         __initialize_replace_variables "/etc/ssmtp/revaliases"
       fi
-      [ "$DEBUGGER" = "on" ] && echo "Done setting up ssmtp"
+      [ "$DEBUGGER" = "on" ] && echo "Done setting up ssmtp" || true
     fi
 
     ################# postfix relay setup
@@ -1275,7 +1275,7 @@ EOF
       if [ ! -f "/run/init.d/postfix.pid" ]; then
         __exec_service postfix start
       fi
-      [ "$DEBUGGER" = "on" ] && echo "Done setting up postfix"
+      [ "$DEBUGGER" = "on" ] && echo "Done setting up postfix" || true
     fi
   fi
   [ -f "/root/dead.letter" ] && __rm "/root/dead.letter"
@@ -1386,12 +1386,12 @@ __initialize_system_etc() {
   if [ -n "$conf_dir" ] && [ -e "$conf_dir" ]; then
     files=$(find "$conf_dir"/* -not -path '*/env/*' -type f 2>/dev/null | sort -u | sed 's|/config/||')
     directories=$(find "$conf_dir"/* -not -path '*/env/*' -type d 2>/dev/null | sort -u | sed 's|/config/||')
-    [ "$DEBUGGER" = "on" ] && echo "Copying config: $conf_dir > /etc/${conf_dir//\/config\//}"
+    [ "$DEBUGGER" = "on" ] && echo "Copying config: $conf_dir > /etc/${conf_dir//\/config\//}" || true
     if [ -n "$directories" ]; then
       for d in $directories; do
         dir="/etc/$d"
         mkdir -p "$dir"
-        [ "$DEBUGGER" = "on" ] && echo "Created directory: $dir"
+        [ "$DEBUGGER" = "on" ] && echo "Created directory: $dir" || true
       done
     fi
     for f in $files; do
@@ -1410,7 +1410,7 @@ __initialize_custom_bin_dir() {
   [ -d "/data/bin" ] && SET_USR_BIN+="$(__find /data/bin f) "
   [ -d "/config/bin" ] && SET_USR_BIN+="$(__find /config/bin f) "
   if [ -n "$SET_USR_BIN" ]; then
-    [ "$DEBUGGER" = "on" ] && echo "Setting up bin: $SET_USR_BIN > $LOCAL_BIN_DIR"
+    [ "$DEBUGGER" = "on" ] && echo "Setting up bin: $SET_USR_BIN > $LOCAL_BIN_DIR" || true
     for create_bin_template in $SET_USR_BIN; do
       if [ -n "$create_bin_template" ]; then
         create_bin_name="${create_bin_template##*/}"
