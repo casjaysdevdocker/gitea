@@ -29,6 +29,19 @@ Update Runbook in AI.md — `functions/entrypoint.sh` is normally regenerated, n
 - `__random_password()` (~line 333): `tr | head -c` pipeline died under `set -eo pipefail` on
   SIGPIPE. Fixed by wrapping in `{ ... } || true`.
 
+## App-breaking bug fixed — __format_variables() whitespace-only input (functions/entrypoint.sh)
+
+Needs syncing back to the upstream template per AI.md's runbook.
+
+- `__format_variables()` (~line 187): `printf '%s\n' $input | sort -Ru | tr '\n' ' '` always
+  emits at least one line even when `$input` word-splits to zero words (whitespace-only), because
+  `printf` with a format containing `%s` runs once even with no args. This made `ENV_PORTS` /
+  `WEB_SERVER_PORTS` resolve to a single space `" "` instead of empty when no port env vars were
+  set, which made `SERVICE_PORT` in `08-gitea.sh` become `" "` — passing the `-n` test but
+  rendering as an empty `--port` arg to `gitea web`, which broke gitea's CLI argument parsing
+  entirely (`Command error: unknown command: /config/gitea/app.ini`). Fixed by replacing the
+  `[ -z "$input" ]` check with `[[ "$input" =~ [^[:space:]] ]] || return 0`.
+
 ## Other observations not yet actioned
 
 - `.gitea/workflows/docker.yaml` uses the same stale/unpinned action pattern (`@v2`-`@v4`, DockerHub-only, `catthehacker/ubuntu:act-latest`) that was removed from the `opengist` repo's duplicate workflow — no `build.yml` counterpart exists here yet.

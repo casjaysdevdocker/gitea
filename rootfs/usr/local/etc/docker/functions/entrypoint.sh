@@ -186,7 +186,7 @@ __get_pid() {
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __format_variables() {
   local input="${*//,/ }"
-  [ -z "$input" ] && return 0
+  [[ "$input" =~ [^[:space:]] ]] || return 0
   printf '%s\n' $input | sort -Ru | tr '\n' ' '
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
