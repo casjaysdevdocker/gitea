@@ -21,6 +21,14 @@ Update Runbook in AI.md — `functions/entrypoint.sh` is normally regenerated, n
   (the default). This was the root cause of the container dying immediately after printing only
   the startup banner. Fixed by appending `|| true` to all 26 occurrences.
 
+## App-breaking bug fixed — __random_password() SIGPIPE (functions/entrypoint.sh)
+
+Needs syncing back to the upstream template in `casjay-dotfiles/scripts` per the Docker Template
+Update Runbook in AI.md — `functions/entrypoint.sh` is normally regenerated, not hand-edited.
+
+- `__random_password()` (~line 333): `tr | head -c` pipeline died under `set -eo pipefail` on
+  SIGPIPE. Fixed by wrapping in `{ ... } || true`.
+
 ## Other observations not yet actioned
 
 - `.gitea/workflows/docker.yaml` uses the same stale/unpinned action pattern (`@v2`-`@v4`, DockerHub-only, `catthehacker/ubuntu:act-latest`) that was removed from the `opengist` repo's duplicate workflow — no `build.yml` counterpart exists here yet.

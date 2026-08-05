@@ -330,7 +330,7 @@ __find_mongodb_conf() {
   find -L '/etc/mongodb' '/etc' -maxdepth 4 -type f \( -name 'mongod.conf' -o -name 'mongodb.conf' \) 2>/dev/null | head -n1
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-__random_password() { tr -dc '0-9a-zA-Z' < /dev/urandom | head -c${1:-16} && echo ""; }
+__random_password() { { tr -dc '0-9a-zA-Z' < /dev/urandom | head -c"${1:-16}"; } || true; echo ""; }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __init_working_dir() {
   # get service name
