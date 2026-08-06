@@ -70,7 +70,15 @@ Needs syncing back to the upstream template per AI.md's runbook.
   lines (~line 241) in `rootfs/usr/local/bin/entrypoint.sh`. Needs syncing to the upstream
   template per AI.md's runbook.
 
+## OCI label cleanup done — forbidden labels removed from Dockerfile
+
+- Removed `org.opencontainers.image.base.name` (belongs on the base image, not the app image) and
+  `org.opencontainers.image.schema-version` (non-spec, redundant with `version`).
+- Removed the duplicate `org.opencontainers.image.authors="${LICENSE}"` line and duplicate
+  `org.opencontainers.image.source="https://docker.io/..."` line; the license value now correctly
+  populates the (previously missing) `org.opencontainers.image.licenses` label per AI.md's OCI
+  label standard (lines 58-87), and `source` keeps the single github.com URL.
+
 ## Other observations not yet actioned
 
 - `.gitea/workflows/docker.yaml` uses the same stale/unpinned action pattern (`@v2`-`@v4`, DockerHub-only, `catthehacker/ubuntu:act-latest`) that was removed from the `opengist` repo's duplicate workflow — no `build.yml` counterpart exists here yet.
-- `Dockerfile` sets forbidden OCI labels (`org.opencontainers.image.base.name`, `.schema-version`, duplicate `authors`) — same issue previously found and fixed in `opengist`.
