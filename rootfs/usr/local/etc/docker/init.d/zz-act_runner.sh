@@ -20,6 +20,7 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # shellcheck disable=SC1001,SC1003,SC2001,SC2003,SC2016,SC2031,SC2090,SC2115,SC2120,SC2155,SC2199,SC2229,SC2317,SC2329
 # - - - - - - - - - - - - - - - - - - - - - - - - -
+VERSION="202608031200-git"
 set -e
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # run trap command on exit
@@ -121,17 +122,17 @@ __gen_auth_token() {
 	token_dir="$CONF_DIR/tokens"
 	gitea_bin="$(command -v gitea)"
 	mkdir -p "$token_dir" >/dev/null 2>&1
-	conf_file="$(find "/config" "/etc" -type f -name '*.ini' 2>/dev/null | grep -E 'git/app.ini|gitea/app.ini|gitea.ini' | head -n1 | grep '^')"
+	conf_file="$(find "/config" "/etc" -type f -name '*.ini' 2>/dev/null | grep -E -- 'git/app.ini|gitea/app.ini|gitea.ini' | head -n1 | grep -- '^')"
 	if [ -n "$SYS_AUTH_TOKEN" ]; then
 		auth_token="$SYS_AUTH_TOKEN"
 	elif [ -s "$CONF_DIR/tokens/system" ]; then
 		auth_token="$(<"$CONF_DIR/tokens/system")"
 	fi
-	auth_token="$(echo "$auth_token" | grep -vE '# |^$')"
+	auth_token="$(echo "$auth_token" | grep -vE -- '# |^$')"
 	if [ -z "$auth_token" ] && [ -n "$gitea_bin" ] && [ -n "$conf_file" ]; then
 		# Only attempt token generation if gitea is fully installed (INSTALL_LOCK = true)
-		if grep -qiE 'INSTALL_LOCK\s*=\s*true' "$conf_file" 2>/dev/null; then
-			auth_token="$(gosu $user $gitea_bin --config "$conf_file" --work-path /data/gitea --custom-path /config/gitea/custom actions generate-runner-token 2>/dev/null | grep -oE '[A-Za-z0-9]{20,}' | tail -n1)"
+		if grep -qiE -- 'INSTALL_LOCK\s*=\s*true' "$conf_file" 2>/dev/null; then
+			auth_token="$(gosu $user $gitea_bin --config "$conf_file" --work-path /data/gitea --custom-path /config/gitea/custom actions generate-runner-token 2>/dev/null | grep -oE -- '[A-Za-z0-9]{20,}' | tail -n1)"
 		fi
 	fi
 	if [ -n "$auth_token" ]; then
@@ -366,7 +367,7 @@ __run_precopy() {
 		ln -sf "$CONF_DIR" "$ETC_DIR"
 	fi
 	# allow custom functions
-	if builtin type -t __run_precopy_local | grep -q 'function'; then __run_precopy_local; fi
+	if builtin type -t __run_precopy_local | grep -q -- 'function'; then __run_precopy_local; fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom prerun functions - IE setup WWW_ROOT_DIR
@@ -387,7 +388,7 @@ __execute_prerun() {
 		fi
 	done
 	# allow custom functions
-	if builtin type -t __execute_prerun_local | grep -q 'function'; then __execute_prerun_local; fi
+	if builtin type -t __execute_prerun_local | grep -q -- 'function'; then __execute_prerun_local; fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Run any pre-execution checks
@@ -435,7 +436,7 @@ __run_pre_execute_checks() {
 		__script_exit 1
 	fi
 	# allow custom functions
-	if builtin type -t __run_pre_execute_checks_local | grep -q 'function'; then __run_pre_execute_checks_local; fi
+	if builtin type -t __run_pre_execute_checks_local | grep -q -- 'function'; then __run_pre_execute_checks_local; fi
 	# exit function
 	return $exitStatus
 }
@@ -465,7 +466,7 @@ __update_conf_files() {
 	# Mark config as fully initialised so __run_precopy skips re-seeding on restart
 	touch "$CONF_DIR/.initialized" 2>/dev/null || true
 	# allow custom functions
-	if builtin type -t __update_conf_files_local | grep -q 'function'; then __update_conf_files_local; fi
+	if builtin type -t __update_conf_files_local | grep -q -- 'function'; then __update_conf_files_local; fi
 	# exit function
 	return $exitCode
 }
@@ -487,7 +488,7 @@ __pre_execute() {
 	# Lets wait a few seconds before continuing
 	sleep 2
 	# allow custom functions
-	if builtin type -t __pre_execute_local | grep -q 'function'; then __pre_execute_local; fi
+	if builtin type -t __pre_execute_local | grep -q -- 'function'; then __pre_execute_local; fi
 	# exit function
 	return $exitCode
 }
@@ -522,7 +523,7 @@ __post_execute() {
 			act_runner daemon --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" >>"$RUNNER_DAEMON_LOG" 2>/dev/stderr &
 			pid=$!
 			sleep 5
-			if ps ax | awk '{print $1}' | grep -v 'grep' | grep -q "$pid$"; then
+			if ps ax | awk '{print $1}' | grep -v -- 'grep' | grep -q -- "$pid$"; then
 				echo "$(date)" >"$CONF_DIR/.runner"
 				echo "$pid" >"$RUN_DIR/act_runner.gitea.pid"
 				echo "Runner: gitea has been started with pid: $pid" | tee -a -p "$LOG_DIR/init.txt"
@@ -541,7 +542,7 @@ __post_execute() {
 			act_runner cache-server --config "$CACHE_CONFIG_FILE" 2>>/dev/stderr >>"$CACHE_LOG_FILE" &
 			execPid=$!
 			sleep 5
-			if ps ax | awk '{print $1}' | grep -v grep | grep -q "$execPid$"; then
+			if ps ax | awk '{print $1}' | grep -v -- 'grep' | grep -q -- "$execPid$"; then
 				echo "Cache server has been started and is listening on $RUNNER_CACHE_PORT"
 			else
 				echo "Failed to start the cache server" >&2
@@ -555,7 +556,7 @@ __post_execute() {
 	# fire-and-forget: backgrounded subshell always succeeds at launch
 	retVal=0
 	# allow custom functions
-	if builtin type -t __post_execute_local | grep -q 'function'; then __post_execute_local; fi
+	if builtin type -t __post_execute_local | grep -q -- 'function'; then __post_execute_local; fi
 	# exit function
 	return $retVal
 }
@@ -567,7 +568,7 @@ __pre_message() {
 	# execute commands
 
 	# allow custom functions
-	if builtin type -t __pre_message_local | grep -q 'function'; then __pre_message_local; fi
+	if builtin type -t __pre_message_local | grep -q -- 'function'; then __pre_message_local; fi
 	# exit function
 	return $exitCode
 }
@@ -580,7 +581,7 @@ __update_ssl_conf() {
 	# execute commands
 
 	# allow custom functions
-	if builtin type -t __update_ssl_conf_local | grep -q 'function'; then __update_ssl_conf_local; fi
+	if builtin type -t __update_ssl_conf_local | grep -q -- 'function'; then __update_ssl_conf_local; fi
 	# set exitCode
 	return $exitCode
 }

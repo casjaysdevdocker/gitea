@@ -8,6 +8,15 @@ Verified clean by `script-lint` agent after fix.
   `[[ "$SERVER_ADDRESS" != *"://"* ]]`; grep call removed entirely so the missing `--` no longer
   applies.
 
+## Lint cleanup done — version stamp and grep -- fixed (zz-act_runner.sh)
+
+Verified clean by `script-lint` agent after fix.
+
+- `rootfs/usr/local/etc/docker/init.d/zz-act_runner.sh`: added `VERSION="202608031200-git"`
+  matching the existing `##@Version` header; added `--` before the pattern argument on all 15 grep
+  invocations in the file (not just the subset originally enumerated); quoted the bare `grep`
+  pattern at the former line 544 (now `grep -v -- 'grep'`).
+
 ## New lint finding — line-length violation (start-runners)
 
 Found by `script-lint` while verifying the fixes above; unrelated to those fixes, not yet actioned.
