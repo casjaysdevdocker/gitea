@@ -1,15 +1,20 @@
 # TODO.AI.md
 
-## Lint cleanup — pre-existing script-lint violations (found incidentally while wiring act_runner cache-server)
+## Lint cleanup done — UUOC fixed (start-runners)
 
-Not fixed yet — out of scope for the cache-enablement change; flagged by `script-lint` agent.
+Verified clean by `script-lint` agent after fix.
 
-- `rootfs/usr/local/bin/start-runners`:
-  - line 24: UUOC — `echo "$SERVER_ADDRESS" | grep -q '://'` should be `[[ "$SERVER_ADDRESS" == *"://"* ]]`
-  - line 24: `grep -q '://'` missing `--` before query
-- `rootfs/usr/local/etc/docker/init.d/zz-act_runner.sh`:
-  - line 4: `##@Version` header present but no matching `VERSION=` assignment in script body
-  - missing `--` before the grep query at lines 124 (x2), 130, 133, 134, 369, 390, 401, 438, 468, 525 (x2), 544 (x2, also should quote the `grep` pattern), 571, 583
+- `rootfs/usr/local/bin/start-runners`: line 24 UUOC (`echo | grep -q '://'`) replaced with
+  `[[ "$SERVER_ADDRESS" != *"://"* ]]`; grep call removed entirely so the missing `--` no longer
+  applies.
+
+## New lint finding — line-length violation (start-runners)
+
+Found by `script-lint` while verifying the fixes above; unrelated to those fixes, not yet actioned.
+
+- `rootfs/usr/local/bin/start-runners` line 36: `RUNNER_LABELS="${RUNNER_LABELS:-...}"` default
+  value is 781 characters, exceeds the 180-char line limit. Needs splitting across multiple lines
+  (e.g. build the default via an array or heredoc instead of one long string literal).
 
 ## App-breaking bug fixed — DEBUGGER guard pattern under set -e (functions/entrypoint.sh)
 

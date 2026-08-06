@@ -21,7 +21,7 @@ trap __cleanup SIGTERM SIGINT
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Validate required environment variables
 if [ -n "$SERVER_ADDRESS" ]; then
-	if ! echo "$SERVER_ADDRESS" | grep -q '://'; then
+	if [[ "$SERVER_ADDRESS" != *"://"* ]]; then
 		SERVER_ADDRESS="http://$SERVER_ADDRESS"
 	fi
 else
