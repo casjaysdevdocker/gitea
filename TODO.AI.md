@@ -17,13 +17,12 @@ Verified clean by `script-lint` agent after fix.
   invocations in the file (not just the subset originally enumerated); quoted the bare `grep`
   pattern at the former line 544 (now `grep -v -- 'grep'`).
 
-## New lint finding — line-length violation (start-runners)
+## Lint cleanup done — line-length violation fixed (start-runners)
 
-Found by `script-lint` while verifying the fixes above; unrelated to those fixes, not yet actioned.
-
-- `rootfs/usr/local/bin/start-runners` line 36: `RUNNER_LABELS="${RUNNER_LABELS:-...}"` default
-  value is 781 characters, exceeds the 180-char line limit. Needs splitting across multiple lines
-  (e.g. build the default via an array or heredoc instead of one long string literal).
+- `rootfs/usr/local/bin/start-runners`: the 781-char `RUNNER_LABELS="${RUNNER_LABELS:-...}"`
+  default literal was replaced with a `_default_runner_labels` array joined via `IFS=,`, only
+  applied when `RUNNER_LABELS` is unset. Verified with `bash -n` and a line-length scan (no line
+  exceeds 180 chars).
 
 ## App-breaking bug fixed — DEBUGGER guard pattern under set -e (functions/entrypoint.sh)
 
@@ -79,6 +78,11 @@ Needs syncing back to the upstream template per AI.md's runbook.
   populates the (previously missing) `org.opencontainers.image.licenses` label per AI.md's OCI
   label standard (lines 58-87), and `source` keeps the single github.com URL.
 
-## Other observations not yet actioned
+## Non-issue — confirmed intentional (`.gitea/workflows/docker.yaml`)
 
-- `.gitea/workflows/docker.yaml` uses the same stale/unpinned action pattern (`@v2`-`@v4`, DockerHub-only, `catthehacker/ubuntu:act-latest`) that was removed from the `opengist` repo's duplicate workflow — no `build.yml` counterpart exists here yet.
+- Uses a stale/unpinned action pattern (`@v2`-`@v4`, DockerHub-only, `catthehacker/ubuntu:act-latest`).
+  AI.md PART 7 explicitly documents this as the legacy hand-crafted workflow: "Never overwrite it,
+  and never use it as a template for new work — it uses tag-pinned actions and retired secret
+  names. All new/updated workflows come from `gen-dockerfile actions`." No `build.yml` exists yet in
+  this repo; generating one is a separate task (running `gen-dockerfile actions`), not a fix to this
+  file.
