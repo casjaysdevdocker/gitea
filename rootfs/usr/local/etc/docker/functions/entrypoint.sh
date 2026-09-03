@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202607271325-git
+##@Version           :  202609030524-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  git-admin@casjaysdev.pro
 # @@License          :  LICENSE.md
@@ -19,6 +19,8 @@
 # @@Template         :  functions/docker-entrypoint
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # shellcheck disable=SC1001,SC1003,SC2001,SC2003,SC2016,SC2031,SC2090,SC2115,SC2120,SC2155,SC2199,SC2229,SC2317,SC2329
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+VERSION="202609030524-git"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # setup debugging - https://www.gnu.org/software/bash/manual/html_node/The-Set-Builtin.html
 if [ -f "/config/.debug" ] && [ -z "$DEBUGGER_OPTIONS" ]; then
@@ -77,7 +79,7 @@ __rm() {
   fi
   return 0
 }
-__grep_test() { grep -sh "$1" "$2" 2>/dev/null | grep -qwF "${3:-$1}"; }
+__grep_test() { grep -sh -- "$1" "$2" 2>/dev/null | grep -qwF -- "${3:-$1}"; }
 __netstat() {
   command -v netstat &>/dev/null || {
     [ "$DEBUGGER" = "on" ] && echo "Warning: netstat command not found" >&2 || true
@@ -89,7 +91,7 @@ __cd() {
   [ -d "$1" ] || mkdir -p "$1" 2>/dev/null || return 1
   builtin cd "$1" || return 1
 }
-__is_in_file() { [ -e "$2" ] && grep -Rsq "$1" "$2" 2>/dev/null; }
+__is_in_file() { [ -e "$2" ] && grep -Rsq -- "$1" "$2" 2>/dev/null; }
 __curl() { curl -q -sfI --max-time 3 -k -o /dev/null "$@" 2>/dev/null || return 10; }
 __find() {
   local result
@@ -108,7 +110,7 @@ __file_exists_with_content() { [ -n "$1" ] && [ -f "$1" ] && [ -s "$1" ] || retu
 __sed() { sed -i "s|$1|$2|g" "$3" 2>/dev/null || return 1; }
 __ps() {
   command -v ps &>/dev/null || return 10
-  ps "$@" 2>/dev/null | sed 's|:||g' | grep -Fw " ${1:-$SERVICE_NAME}$" || return 10
+  ps "$@" 2>/dev/null | sed 's|:||g' | grep -Fw -- " ${1:-$SERVICE_NAME}$" || return 10
 }
 __is_dir_empty() {
   [ -n "$1" ] && [ -d "$1" ] || return 1
@@ -138,7 +140,7 @@ __pgrep() {
   while [ $count -ge 0 ]; do
     pgrep -x "$srvc" &>/dev/null && return 0
     pgrep -f "$srvc" &>/dev/null && return 0
-    ps -eo comm 2>/dev/null | grep -qxF "$srvc" && return 0
+    ps -eo comm 2>/dev/null | grep -qxF -- "$srvc" && return 0
     [ $count -gt 0 ] && sleep 1
     count=$((count - 1))
   done
@@ -166,7 +168,7 @@ __is_running() {
   if command -v pgrep &>/dev/null; then
     pgrep -f "$pat" &>/dev/null
   else
-    ps -eo args 2>/dev/null | grep -v grep | grep -Eq "$pat"
+    ps -eo args 2>/dev/null | grep -v -- grep | grep -Eq -- "$pat"
   fi
 }
 __get_pid() {
@@ -205,19 +207,34 @@ __no_exit() {
   local failed_services=""
   local failure_count=0
 
-  # only return early if the recorded PID is still alive; a leftover
-  # pid file from a prior container life (docker restart) would otherwise
-  # cause us to exit instead of entering the monitor loop.
+  # only return early if the recorded PID is still alive AND it is actually
+  # this same monitor loop (not just some unrelated process that happens to
+  # have been assigned the same number). /run persists across `docker
+  # restart` (same container filesystem), but the PID namespace resets on
+  # every restart, so a low PID recorded before the restart can coincidentally
+  # be reused by an unrelated early-boot process within the new namespace. A
+  # bare `kill -0` on that number alone would then wrongly report the old
+  # monitor as still running and `return 0` here without ever exec'ing the
+  # replacement monitor loop below — silently leaving the container with no
+  # supervisor loop, so it exits as soon as the caller's own script reaches
+  # its end. Guarding on the "__no_exit_monitor_loop" marker (embedded in the
+  # exec'd bash -c command below, so it shows up in that PID's own cmdline)
+  # confirms the live process is actually this monitor, not a coincidental
+  # PID-reuse false positive.
   if [ -f "/run/.no_exit.pid" ]; then
     local no_exit_pid
     no_exit_pid=$(<"/run/.no_exit.pid") 2>/dev/null
-    if [ -n "$no_exit_pid" ] && kill -0 "$no_exit_pid" 2>/dev/null; then
+    if [ -n "$no_exit_pid" ] && kill -0 "$no_exit_pid" 2>/dev/null \
+      && grep -q -- "__no_exit_monitor_loop" "/proc/$no_exit_pid/cmdline" 2>/dev/null; then
       return 0
     fi
     rm -f /run/.no_exit.pid 2>/dev/null || true
   fi
 
   exec bash -c "
+    # __no_exit_monitor_loop marker: identifies this process's cmdline as the
+    # genuine monitor loop, so a future __no_exit call can tell it apart from
+    # an unrelated process that coincidentally reused this PID after a restart
     trap 'echo \"Container shutdown requested\"; rm -f /run/.no_exit.pid /run/*.pid; exit 0' TERM INT
     echo \$\$ > /run/.no_exit.pid
     failed_services=\"\"
@@ -267,7 +284,8 @@ __banner() {
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __service_banner() {
-  local icon="${1:-🔧}"
+  local icon="${1:-}"
+  [ -z "$icon" ] && icon="$( [ -z "$NO_COLOR" ] && echo "🔧" || echo "" )"
   local message="${2:-Processing}"
   local service="${3:-service}"
   local full_message="$message $service"
@@ -682,7 +700,7 @@ __file_copy() {
 __generate_random_uids() {
   local set_random_uid=$((100 + RANDOM % 900))
   while :; do
-    if grep -shq "x:.*:$set_random_uid:" "/etc/group" && ! grep -shq "x:$set_random_uid:.*:" "/etc/passwd"; then
+    if grep -shq -- "x:.*:$set_random_uid:" "/etc/group" && ! grep -shq -- "x:$set_random_uid:.*:" "/etc/passwd"; then
       set_random_uid=$((set_random_uid + 1))
     else
       echo "$set_random_uid"
@@ -738,7 +756,7 @@ __fix_permissions() {
   change_group="${2:-${SERVICE_GROUP:-$change_user}}"
   [ -n "$RUNAS_USER" ] && [ "$RUNAS_USER" != "root" ] && change_user="$RUNAS_USER" && change_group="$change_user"
   if [ -n "$change_user" ]; then
-    if grep -shq "^$change_user:" "/etc/passwd"; then
+    if grep -shq -- "^$change_user:" "/etc/passwd"; then
       for permissions in $ADD_APPLICATION_DIRS $APPLICATION_DIRS; do
         if [ -n "$permissions" ] && [ -e "$permissions" ]; then
           chown -Rf "$change_user" "$permissions" 2>/dev/null
@@ -748,7 +766,7 @@ __fix_permissions() {
     fi
   fi
   if [ -n "$change_group" ]; then
-    if grep -shq "^$change_group:" "/etc/group"; then
+    if grep -shq -- "^$change_group:" "/etc/group"; then
       for permissions in $ADD_APPLICATION_DIRS $APPLICATION_DIRS; do
         if [ -n "$permissions" ] && [ -e "$permissions" ]; then
           chgrp -Rf "$change_group" "$permissions" 2>/dev/null
@@ -809,7 +827,7 @@ __set_user_group_id() {
     return 0
   fi
   # Nothing to do if the user does not exist yet
-  if ! grep -shq "^$set_user:" "/etc/passwd" "/etc/group"; then
+  if ! grep -shq -- "^$set_user:" "/etc/passwd" "/etc/group"; then
     return 0
   fi
   set_uid="$(__get_uid "$set_user" || echo "$set_uid")"
@@ -852,7 +870,7 @@ __create_service_user() {
     return 1
   fi
   # Check if user and group already exist
-  if grep -shq "^$create_user:" "/etc/passwd" && grep -shq "^$create_group:" "/etc/group"; then
+  if grep -shq -- "^$create_user:" "/etc/passwd" && grep -shq -- "^$create_group:" "/etc/group"; then
     return 0
   fi
   # Override with RUNAS_USER if specified and not root
@@ -898,7 +916,7 @@ __create_service_user() {
     if ! groupadd --force --system -g "$create_gid" "$create_group" 2>&1 | tee -a "$log_file"; then
       echo "Error: Failed to create group '$create_group'" >&2
       exitStatus=$((exitStatus + 1))
-    elif ! grep -shq "^$create_group:" "/etc/group"; then
+    elif ! grep -shq -- "^$create_group:" "/etc/group"; then
       echo "Error: Group '$create_group' not found in /etc/group after creation" >&2
       exitStatus=$((exitStatus + 1))
     fi
@@ -906,10 +924,12 @@ __create_service_user() {
   # Create user if needed (only if group creation succeeded)
   if [ $exitStatus -eq 0 ] && [ -n "$create_user" ] && ! __check_for_user "$create_user"; then
     echo "Creating system user '$create_user' with UID $create_uid"
-    if ! useradd --system --uid "$create_uid" --gid "$create_group" --comment "Account for $create_user" --home-dir "$create_home_dir" --shell /bin/false "$create_user" 2>&1 | tee -a "$log_file"; then
+    if ! useradd --system --uid "$create_uid" --gid "$create_group" \
+      --comment "Account for $create_user" --home-dir "$create_home_dir" \
+      --shell /bin/false "$create_user" 2>&1 | tee -a "$log_file"; then
       echo "Error: Failed to create user '$create_user'" >&2
       exitStatus=$((exitStatus + 1))
-    elif ! grep -shq "^$create_user:" "/etc/passwd"; then
+    elif ! grep -shq -- "^$create_user:" "/etc/passwd"; then
       echo "Error: User '$create_user' not found in /etc/passwd after creation" >&2
       exitStatus=$((exitStatus + 1))
     fi
@@ -933,7 +953,7 @@ __create_service_user() {
         echo "$create_user ALL=(ALL)   NOPASSWD: ALL" >"/etc/sudoers.d/$create_user" 2>/dev/null || echo "Warning: Failed to create sudoers file for '$create_user'" >&2
         chmod 0440 "/etc/sudoers.d/$create_user" 2>/dev/null
       fi
-    elif [ -f "/etc/sudoers" ] && ! grep -qs "^$create_user " "/etc/sudoers"; then
+    elif [ -f "/etc/sudoers" ] && ! grep -qs -- "^$create_user " "/etc/sudoers"; then
       echo "$create_user ALL=(ALL)   NOPASSWD: ALL" >>"/etc/sudoers" 2>/dev/null || echo "Warning: Failed to add '$create_user' to sudoers" >&2
     fi
     SERVICE_UID="$create_uid"
@@ -1030,7 +1050,7 @@ __start_init_scripts() {
           touch "$pidFile"
           name="${init##*/}"
           service="${name#*-}"; service="${service%.sh}"
-          [ "$DEBUGGER" = "on" ] && __service_banner "🔧" "Executing service script:" "${init##*/}" || true
+          [ "$DEBUGGER" = "on" ] && __service_banner "$( [ -z "$NO_COLOR" ] && echo "🔧" || echo "" )" "Executing service script:" "${init##*/}" || true
           # Execute the init script and capture the exit code (subshell isolates exit calls)
           if ( source "$init" ); then
             # Check if service was disabled first
@@ -1093,7 +1113,7 @@ __start_init_scripts() {
           else
             initStatus="1"
             critical_failures=$((critical_failures + 1))
-            __service_banner "❌" "Service $service failed to start -" "check logs"
+            __service_banner "$( [ -z "$NO_COLOR" ] && echo "❌" || echo "" )" "Service $service failed to start -" "check logs"
           fi
           echo ""
         fi
@@ -1103,12 +1123,24 @@ __start_init_scripts() {
       # Summary
       echo ""
       if [ $critical_failures -gt 0 ]; then
-        echo "⚠️ Warning: $critical_failures critical service(s) reported failures"
+        if [ -z "$NO_COLOR" ]; then
+          echo "⚠️ Warning: $critical_failures critical service(s) reported failures"
+        else
+          echo "Warning: $critical_failures critical service(s) reported failures"
+        fi
         if [ "$exit_on_failure" = "true" ] && [ $critical_failures -ge 2 ]; then
-          echo "❌ Exiting due to multiple critical service failures (threshold: 2)"
+          if [ -z "$NO_COLOR" ]; then
+            echo "❌ Exiting due to multiple critical service failures (threshold: 2)"
+          else
+            echo "Exiting due to multiple critical service failures (threshold: 2)"
+          fi
           return 1
         else
-          echo "ℹ️ Continuing with $critical_failures failure(s) - container may still be functional"
+          if [ -z "$NO_COLOR" ]; then
+            echo "ℹ️ Continuing with $critical_failures failure(s) - container may still be functional"
+          else
+            echo "Continuing with $critical_failures failure(s) - container may still be functional"
+          fi
         fi
       else
         echo "✅ All service initializations completed successfully"
@@ -1516,22 +1548,22 @@ __switch_to_user() {
   local switch_user="${SERVICE_USER:-$RUNAS_USER}"
   if [ "$switch_user" = "root" ]; then
     su_exec=""
-    su_cmd() { eval "$@" || return 1; }
+    __su_cmd() { eval "$@" || return 1; }
   elif command -v gosu &>/dev/null; then
     su_exec="gosu $switch_user"
-    su_cmd() { $su_exec "$@" || return 1; }
+    __su_cmd() { $su_exec "$@" || return 1; }
   elif command -v runuser &>/dev/null; then
     su_exec="runuser -u $switch_user"
-    su_cmd() { $su_exec "$@" || return 1; }
+    __su_cmd() { $su_exec "$@" || return 1; }
   elif command -v sudo &>/dev/null; then
     su_exec="sudo -u $switch_user"
-    su_cmd() { $su_exec "$@" || return 1; }
+    __su_cmd() { $su_exec "$@" || return 1; }
   elif command -v su &>/dev/null; then
     su_exec="su -s /bin/sh - $switch_user"
-    su_cmd() { $su_exec -c "$@" || return 1; }
+    __su_cmd() { $su_exec -c "$@" || return 1; }
   else
     su_exec=""
-    su_cmd() {
+    __su_cmd() {
       echo "Can not switch to $switch_user: attempting to run as root"
       if ! eval "$@"; then
         return 1

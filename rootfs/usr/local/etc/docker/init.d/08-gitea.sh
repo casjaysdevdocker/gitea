@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202606261600-git
+##@Version           :  202609030601-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
 # @@License          :  LICENSE.md
@@ -20,6 +20,7 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # shellcheck disable=SC1001,SC1003,SC2001,SC2003,SC2016,SC2031,SC2090,SC2115,SC2120,SC2155,SC2199,SC2229,SC2317,SC2329
 # - - - - - - - - - - - - - - - - - - - - - - - - -
+VERSION="202609030601-git"
 set -e
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # run trap command on exit
@@ -43,7 +44,11 @@ __trap_err_handler() {
   fi
   # Critical error - but only fail if service hasn't started yet
   if [ "$SERVICE_IS_RUNNING" != "yes" ]; then
-    echo "❌ Critical error (exit $retVal): $command" >&2
+    if [ -z "$NO_COLOR" ]; then
+      echo "❌ Critical error (exit $retVal): $command" >&2
+    else
+      echo "Critical error (exit $retVal): $command" >&2
+    fi
     kill -TERM 1 2>/dev/null || exit $retVal
   fi
   return 0
@@ -108,7 +113,11 @@ fi
 if [ -n "$SERVICE_NAME" ] && [ -f "/run/init.d/$SERVICE_NAME.pid" ]; then
   old_pid=$(<"/run/init.d/$SERVICE_NAME.pid") 2>/dev/null
   if [ -n "$old_pid" ] && ! kill -0 "$old_pid" 2>/dev/null; then
-    echo "🧹 Removing stale PID file for $SERVICE_NAME"
+    if [ -z "$NO_COLOR" ]; then
+      echo "🧹 Removing stale PID file for $SERVICE_NAME"
+    else
+      echo "Removing stale PID file for $SERVICE_NAME"
+    fi
     rm -f "/run/init.d/$SERVICE_NAME.pid"
   fi
 fi
@@ -320,7 +329,7 @@ __run_precopy() {
 		ln -sf "$CONF_DIR" "$ETC_DIR"
 	fi
 	# allow custom functions
-	if builtin type -t __run_precopy_local | grep -q 'function'; then __run_precopy_local; fi
+	if builtin type -t __run_precopy_local | grep -q -- 'function'; then __run_precopy_local; fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom prerun functions - IE setup WWW_ROOT_DIR
@@ -330,7 +339,7 @@ __execute_prerun() {
 	# Define actions/commands
 
 	# allow custom functions
-	if builtin type -t __execute_prerun_local | grep -q 'function'; then __execute_prerun_local; fi
+	if builtin type -t __execute_prerun_local | grep -q -- 'function'; then __execute_prerun_local; fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Run any pre-execution checks
@@ -356,7 +365,7 @@ __run_pre_execute_checks() {
 		__script_exit 1
 	fi
 	# allow custom functions
-	if builtin type -t __run_pre_execute_checks_local | grep -q 'function'; then __run_pre_execute_checks_local; fi
+	if builtin type -t __run_pre_execute_checks_local | grep -q -- 'function'; then __run_pre_execute_checks_local; fi
 	# exit function
 	return $exitStatus
 }
@@ -441,7 +450,7 @@ __update_conf_files() {
 	touch "$CONF_DIR/.initialized" 2>/dev/null || true
 
 	# allow custom functions
-	if builtin type -t __update_conf_files_local | grep -q 'function'; then __update_conf_files_local; fi
+	if builtin type -t __update_conf_files_local | grep -q -- 'function'; then __update_conf_files_local; fi
 	# exit function
 	return $exitCode
 }
@@ -463,7 +472,7 @@ __pre_execute() {
 	# Lets wait a few seconds before continuing
 	sleep 2
 	# allow custom functions
-	if builtin type -t __pre_execute_local | grep -q 'function'; then __pre_execute_local; fi
+	if builtin type -t __pre_execute_local | grep -q -- 'function'; then __pre_execute_local; fi
 	# exit function
 	return $exitCode
 }
@@ -496,7 +505,7 @@ __post_execute() {
 	# fire-and-forget: backgrounded subshell always succeeds at launch
 	retVal=0
 	# allow custom functions
-	if builtin type -t __post_execute_local | grep -q 'function'; then __post_execute_local; fi
+	if builtin type -t __post_execute_local | grep -q -- 'function'; then __post_execute_local; fi
 	# exit function
 	return $retVal
 }
@@ -508,7 +517,7 @@ __pre_message() {
 	# execute commands
 
 	# allow custom functions
-	if builtin type -t __pre_message_local | grep -q 'function'; then __pre_message_local; fi
+	if builtin type -t __pre_message_local | grep -q -- 'function'; then __pre_message_local; fi
 	# exit function
 	return $exitCode
 }
@@ -521,7 +530,7 @@ __update_ssl_conf() {
 	# execute commands
 
 	# allow custom functions
-	if builtin type -t __update_ssl_conf_local | grep -q 'function'; then __update_ssl_conf_local; fi
+	if builtin type -t __update_ssl_conf_local | grep -q -- 'function'; then __update_ssl_conf_local; fi
 	# set exitCode
 	return $exitCode
 }
@@ -643,7 +652,7 @@ __run_start_script() {
         __log_debug "Using $su_exec" | tee -a -p "/data/logs/init.txt"
       fi
       __log_info "$message" | tee -a -p "/data/logs/init.txt"
-      su_cmd touch "$SERVICE_PID_FILE"
+      __su_cmd touch "$SERVICE_PID_FILE"
       # W14: invalidate cached START_SCRIPT if key variables changed
       local _script_hash_src="$cmd $args $SERVICE_USER $RESET_ENV $su_exec"
       local _script_hash

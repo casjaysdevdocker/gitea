@@ -1,8 +1,31 @@
 #!/usr/bin/env bash
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# shellcheck shell=bash
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+##@Version           :  202609030524-git
+# @@Author           :  Jason Hempstead
+# @@Contact          :  jason@casjaysdev.pro
+# @@License          :  LICENSE.md
+# @@ReadME           :  start-runners --help
+# @@Copyright        :  Copyright: (c) 2026 Jason Hempstead, Casjays Developments
+# @@Created          :  Friday, Jun 05, 2026 18:14 EDT
+# @@File             :  start-runners
+# @@Description      :  Start act runners
+# @@Changelog        :  New script
+# @@TODO             :  Better documentation
+# @@Other            :
+# @@Resource         :
+# @@Terminal App     :  no
+# @@sudo/root        :  no
+# @@Template         :  shell/bash
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+# shellcheck disable=SC1001,SC1003,SC2001,SC2003,SC2016,SC2031,SC2090,SC2115,SC2120,SC2155,SC2199,SC2229,SC2317,SC2329
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+VERSION="202609030524-git"
 set -e
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-trap 'retVal=$?; echo "❌ Fatal error occurred: Exit code $retVal at line $LINENO in command: $BASH_COMMAND"; kill -TERM 1' ERR
+trap 'retVal=$?; emoji=$( [ -z "$NO_COLOR" ] && echo "❌ " || echo "" ); \
+echo "${emoji}Fatal error occurred: Exit code $retVal at line $LINENO in command: $BASH_COMMAND"; \
+kill -TERM 1' ERR
 trap 'retVal=$?;if [ "$SERVICE_IS_RUNNING" != "yes" ] && [ -f "$SERVICE_PID_FILE" ]; then rm -Rf "$SERVICE_PID_FILE"; fi;exit $retVal' SIGINT SIGTERM SIGPWR
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Function to __log messages with timestamp
@@ -33,7 +56,37 @@ if [ -z "$SERVER_TOKEN" ]; then
 	exit 1
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-RUNNER_LABELS="${RUNNER_LABELS:-linux:host,node14:docker://node:14,node16:docker://node:16,node18:docker://node:18,node20:docker://node:20,node22:docker://node:22,node:docker://node:latest,perl:docker://perl:latest,ruby:docker://ruby:latest,python:docker://python:latest,python3:docker://python:latest,php7:docker://casjaysdevdocker/php:7,php8:docker://casjaysdevdocker/php:8,php:docker://casjaysdevdocker/php:latest,alpine:docker://casjaysdev/alpine:latest,debian:docker://casjaysdev/debian:latest,ubuntu:docker://casjaysdev/ubuntu:latest,rhel:docker://casjaysdev/almalinux:latest,redhat:docker://casjaysdev/almalinux:latest,almalinux:docker://casjaysdev/almalinux:latest,act_runner:docker://catthehacker/ubuntu:full-latest,ubuntu-latest:docker://catthehacker/ubuntu:full-latest}"
+if [ -z "$RUNNER_LABELS" ]; then
+	_default_runner_labels=(
+		"linux:host"
+		"node14:docker://node:14"
+		"node16:docker://node:16"
+		"node18:docker://node:18"
+		"node20:docker://node:20"
+		"node22:docker://node:22"
+		"node:docker://node:latest"
+		"perl:docker://perl:latest"
+		"ruby:docker://ruby:latest"
+		"python:docker://python:latest"
+		"python3:docker://python:latest"
+		"php7:docker://casjaysdevdocker/php:7"
+		"php8:docker://casjaysdevdocker/php:8"
+		"php:docker://casjaysdevdocker/php:latest"
+		"alpine:docker://casjaysdev/alpine:latest"
+		"debian:docker://casjaysdev/debian:latest"
+		"ubuntu:docker://casjaysdev/ubuntu:latest"
+		"rhel:docker://casjaysdev/almalinux:latest"
+		"redhat:docker://casjaysdev/almalinux:latest"
+		"almalinux:docker://casjaysdev/almalinux:latest"
+		"act_runner:docker://catthehacker/ubuntu:full-latest"
+		"ubuntu-latest:docker://catthehacker/ubuntu:full-latest"
+	)
+	RUNNER_LABELS="$(
+		IFS=,
+		echo "${_default_runner_labels[*]}"
+	)"
+	unset _default_runner_labels
+fi
 # Determine number of runners to start
 RUNNERS_START=${RUNNERS_START:-1}
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -

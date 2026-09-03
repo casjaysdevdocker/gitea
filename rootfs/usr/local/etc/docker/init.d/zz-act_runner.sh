@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202608031200-git
+##@Version           :  202609030534-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
 # @@License          :  LICENSE.md
@@ -20,7 +20,7 @@
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # shellcheck disable=SC1001,SC1003,SC2001,SC2003,SC2016,SC2031,SC2090,SC2115,SC2120,SC2155,SC2199,SC2229,SC2317,SC2329
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-VERSION="202608031200-git"
+VERSION="202609030534-git"
 set -e
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # run trap command on exit
@@ -44,7 +44,11 @@ __trap_err_handler() {
   fi
   # Critical error - but only fail if service hasn't started yet
   if [ "$SERVICE_IS_RUNNING" != "yes" ]; then
-    echo "❌ Critical error (exit $retVal): $command" >&2
+    if [ -z "$NO_COLOR" ]; then
+      echo "❌ Critical error (exit $retVal): $command" >&2
+    else
+      echo "Critical error (exit $retVal): $command" >&2
+    fi
     kill -TERM 1 2>/dev/null || exit $retVal
   fi
   return 0
@@ -109,7 +113,11 @@ fi
 if [ -n "$SERVICE_NAME" ] && [ -f "/run/init.d/$SERVICE_NAME.pid" ]; then
   old_pid=$(<"/run/init.d/$SERVICE_NAME.pid") 2>/dev/null
   if [ -n "$old_pid" ] && ! kill -0 "$old_pid" 2>/dev/null; then
-    echo "🧹 Removing stale PID file for $SERVICE_NAME"
+    if [ -z "$NO_COLOR" ]; then
+      echo "🧹 Removing stale PID file for $SERVICE_NAME"
+    else
+      echo "Removing stale PID file for $SERVICE_NAME"
+    fi
     rm -f "/run/init.d/$SERVICE_NAME.pid"
   fi
 fi
@@ -132,7 +140,10 @@ __gen_auth_token() {
 	if [ -z "$auth_token" ] && [ -n "$gitea_bin" ] && [ -n "$conf_file" ]; then
 		# Only attempt token generation if gitea is fully installed (INSTALL_LOCK = true)
 		if grep -qiE -- 'INSTALL_LOCK\s*=\s*true' "$conf_file" 2>/dev/null; then
-			auth_token="$(gosu $user $gitea_bin --config "$conf_file" --work-path /data/gitea --custom-path /config/gitea/custom actions generate-runner-token 2>/dev/null | grep -oE -- '[A-Za-z0-9]{20,}' | tail -n1)"
+			auth_token="$( gosu $user $gitea_bin --config "$conf_file" \
+				--work-path /data/gitea --custom-path /config/gitea/custom \
+				actions generate-runner-token 2>/dev/null | \
+				grep -oE -- '[A-Za-z0-9]{20,}' | tail -n1 )"
 		fi
 	fi
 	if [ -n "$auth_token" ]; then
@@ -317,7 +328,10 @@ RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest,"
 RUNNER_LABELS+="ubuntu-latest:docker://catthehacker/ubuntu:full-latest"
 unset _HOST_ARCH _ARCH_LABEL
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-RUNNER_IP_ADDRESS="${RUNNER_IP_ADDRESS:-$IP4_ADDRESS}"
+# act_runner registers against gitea in the same container/network namespace, so use
+# loopback rather than the detected external IP4_ADDRESS (which can be transient/wrong
+# under Docker-in-Docker networking and caused "no route to host" registration failures)
+RUNNER_IP_ADDRESS="${RUNNER_IP_ADDRESS:-127.0.0.1}"
 RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$CONF_DIR/default_config.yaml}"
 RUNNER_DEFAULT_HOME="${RUNNER_DEFAULT_HOME:-$CONF_DIR/gitea}"
 RUNNER_CONFIG_NAME="${RUNNER_CONFIG_NAME:-act_runner.yaml}"
@@ -416,11 +430,9 @@ __run_pre_execute_checks() {
 			__replace "REPLACE_RUNNER_CACHE_HOST" "$RUNNER_CACHE_HOST" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
 			__replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
 			__replace "REPLACE_RUNNER_CACHE_SECRET" "$RUNNER_CACHE_SECRET" "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
-			if [ ! -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -n "$SYS_AUTH_TOKEN" ]; then
-				echo "creating gitea runner in $RUNNER_DEFAULT_HOME and registering with http://$INSTANCE_HOSTNAME"
-				act_runner register --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" --labels "$RUNNER_LABELS" --name "gitea" --instance "http://$RUNNER_IP_ADDRESS:$GITEA_PORT" --token "$SYS_AUTH_TOKEN" --no-interactive >>"$RUNNER_LOG_FILE" 2>&1 &
-				echo $! >"$RUN_DIR/act_runner.gitea.pid"
-			fi
+			# Legacy single "gitea"-named runner registration removed: start-runners
+			# (invoked from __post_execute) now owns all runner registration/count via
+			# RUNNERS_START, and registering a second runner here duplicated it
 		fi
 		exitStatus="${exitStatus:-0}"
 		chown -Rf "$SERVICE_USER":"$SERVICE_GROUP" "$CONF_DIR" "$ETC_DIR" "$DATA_DIR" 2>/dev/null
@@ -518,29 +530,25 @@ __post_execute() {
 	(
 		# show message
 		__banner "$postMessageST"
-		# commands to execute
-		if [ -f "$RUNNER_DEFAULT_HOME/runners" ] && [ -f "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" ]; then
-			act_runner daemon --config "$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME" >>"$RUNNER_DAEMON_LOG" 2>/dev/stderr &
-			pid=$!
-			sleep 5
-			if ps ax | awk '{print $1}' | grep -v -- 'grep' | grep -q -- "$pid$"; then
-				echo "$(date)" >"$CONF_DIR/.runner"
-				echo "$pid" >"$RUN_DIR/act_runner.gitea.pid"
-				echo "Runner: gitea has been started with pid: $pid" | tee -a -p "$LOG_DIR/init.txt"
-			else
-				echo "Runner: gitea has failed to start" >/dev/stderr
-				[ -f "$RUN_DIR/act_runner.gitea.pid" ] && rm -f "$RUN_DIR/act_runner.gitea.pid"
-			fi
-			unset pid
-		fi
+		# Legacy single "gitea"-named runner daemon start removed: start-runners
+		# (below) now owns all runner registration/daemon startup via RUNNERS_START
 		#
 		if [ -f "$CACHE_CONFIG_FILE" ]; then
 			mkdir -p "$DATA_DIR/cache"
 			__replace "REPLACE_RUNNER_CACHE_DIR" "$DATA_DIR/cache" "$CACHE_CONFIG_FILE"
 			__replace "REPLACE_RUNNER_CACHE_PORT" "$RUNNER_CACHE_PORT" "$CACHE_CONFIG_FILE"
 			__replace "REPLACE_RUNNER_CACHE_SECRET" "$RUNNER_CACHE_SECRET" "$CACHE_CONFIG_FILE"
-			act_runner cache-server --config "$CACHE_CONFIG_FILE" 2>>/dev/stderr >>"$CACHE_LOG_FILE" &
+			# stdout/stderr are redirected to a real file here (not inherited from the
+			# __post_execute pipe) because cache-server is a long-running process that
+			# never exits; if it inherited the pipe's write end, the tee reading it
+			# would never see EOF and __run_start_script would hang forever (same
+			# fd-leak class as the start-runners fix below)
+			act_runner cache-server --config "$CACHE_CONFIG_FILE" >>"$CACHE_LOG_FILE" 2>&1 &
 			execPid=$!
+			# disown so this long-running background job is fully detached from this
+			# subshell's job table; otherwise bash can block waiting on it when this
+			# subshell (itself the left side of the __post_execute pipe) reaches its end
+			disown "$execPid" 2>/dev/null || true
 			sleep 5
 			if ps ax | awk '{print $1}' | grep -v -- 'grep' | grep -q -- "$execPid$"; then
 				echo "Cache server has been started and is listening on $RUNNER_CACHE_PORT"
@@ -549,7 +557,17 @@ __post_execute() {
 			fi
 			unset pid
 		fi
-		[ -x "/usr/local/bin/start-runners" ] && /usr/local/bin/start-runners &
+		# stdout/stderr are redirected to a real file here (not inherited from the
+		# __post_execute pipe) because start-runners execs long-running act_runner
+		# daemons that never exit; if they inherited the pipe's write end, the
+		# tee reading it would never see EOF and __run_start_script would hang forever
+		if [ -x "/usr/local/bin/start-runners" ]; then
+			/usr/local/bin/start-runners >>"$LOG_DIR/runners.log" 2>&1 &
+			# disown so this long-running background job is fully detached from this
+			# subshell's job table; otherwise bash can block waiting on it when this
+			# subshell (itself the left side of the __post_execute pipe) reaches its end
+			disown "$!" 2>/dev/null || true
+		fi
 		# show exit message
 		__banner "$postMessageEnd: Status $retVal"
 	) 2>"/dev/stderr" | tee -p -a "/data/logs/init.txt" &
@@ -703,7 +721,7 @@ __run_start_script() {
         __log_debug "Using $su_exec" | tee -a -p "/data/logs/init.txt"
       fi
       __log_info "$message" | tee -a -p "/data/logs/init.txt"
-      su_cmd touch "$SERVICE_PID_FILE"
+      __su_cmd touch "$SERVICE_PID_FILE"
       # W14: invalidate cached START_SCRIPT if key variables changed
       local _script_hash_src="$cmd $args $SERVICE_USER $RESET_ENV $su_exec"
       local _script_hash
@@ -1027,7 +1045,8 @@ if [ -n "$EXEC_CMD_BIN" ]; then
   fi
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# start the post execute function in background
-__post_execute 2>"/dev/stderr" | tee -p -a "/data/logs/init.txt" &
+# EXEC_CMD_BIN is empty for this service, so __run_start_script already invoked
+# __post_execute internally (its empty-cmd branch); calling it again here would
+# duplicate runner registration/daemon startup
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 __script_exit $SERVICE_EXIT_CODE

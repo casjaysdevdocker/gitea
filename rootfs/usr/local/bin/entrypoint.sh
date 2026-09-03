@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # shellcheck shell=bash
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-##@Version           :  202606261500-git
+##@Version           :  202609030524-git
 # @@Author           :  Jason Hempstead
 # @@Contact          :  jason@casjaysdev.pro
 # @@License          :  WTFPL
@@ -19,6 +19,8 @@
 # @@Template         :  other/docker-entrypoint
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # shellcheck disable=SC1001,SC1003,SC2001,SC2003,SC2016,SC2031,SC2090,SC2115,SC2120,SC2155,SC2199,SC2229,SC2317,SC2329
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+VERSION="202609030524-git"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # run trap command on exit
 trap 'retVal=$?;[ "$SERVICE_IS_RUNNING" != "yes" ] && [ -f "$SERVICE_PID_FILE" ] && rm -Rf "$SERVICE_PID_FILE";exit $retVal' INT TERM
@@ -330,7 +332,7 @@ if [ "$ENTRYPOINT_FIRST_RUN" != "no" ]; then
   # if ipv6 add it to /etc/hosts
   if [ "$UPDATE_FILE_HOSTS" = "yes" ]; then
     echo "# known hostname mappings" >"/etc/hosts" 2>/dev/null || true
-    if [ -n "$(ip a 2>/dev/null | grep 'inet6.*::' || ifconfig 2>/dev/null | grep 'inet6.*::')" ]; then
+    if [ -n "$(ip a 2>/dev/null | grep -- 'inet6.*::' || ifconfig 2>/dev/null | grep -- 'inet6.*::')" ]; then
       __printf_space "40" "::1" "localhost" >>"/etc/hosts" 2>/dev/null || true
       __printf_space "40" "127.0.0.1" "localhost" >>"/etc/hosts" 2>/dev/null || true
     else
@@ -371,7 +373,7 @@ if [ "$ENTRYPOINT_FIRST_RUN" != "no" ]; then
   # - - - - - - - - - - - - - - - - - - - - - - - - -
   # import hosts file into container
   if [ -f "/usr/local/etc/hosts" ] && [ "$UPDATE_FILE_HOSTS" = "yes" ]; then
-    grep -vF "$HOSTNAME" "/usr/local/etc/hosts" 2>/dev/null >>"/etc/hosts" || true
+    grep -vF -- "$HOSTNAME" "/usr/local/etc/hosts" 2>/dev/null >>"/etc/hosts" || true
   fi
   # - - - - - - - - - - - - - - - - - - - - - - - - -
   # import resolv.conf file into container
@@ -431,9 +433,16 @@ fi
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # if no pid assume container restart - clean stale files on restart
 if [ -f "$ENTRYPOINT_PID_FILE" ]; then
-  # Check if the PID in the file is still running
+  # Check if the PID in the file is still running. /run persists across
+  # `docker restart` (same container filesystem), but the PID namespace
+  # resets every restart, so a recorded PID can coincidentally be reused by
+  # an unrelated early-boot process in the new namespace. A bare `kill -0`
+  # would then wrongly treat this as "entrypoint already running" and skip
+  # __start_init_scripts entirely on a genuine restart, so also require the
+  # live process's own cmdline to actually be this entrypoint script.
   entrypoint_pid=$(<"$ENTRYPOINT_PID_FILE") 2>/dev/null
-  if [ -n "$entrypoint_pid" ] && kill -0 "$entrypoint_pid" 2>/dev/null; then
+  if [ -n "$entrypoint_pid" ] && kill -0 "$entrypoint_pid" 2>/dev/null \
+    && grep -q -- "entrypoint.sh" "/proc/$entrypoint_pid/cmdline" 2>/dev/null; then
     # Process is still running, don't restart services
     START_SERVICES="no"
     touch "$ENTRYPOINT_PID_FILE"
@@ -550,7 +559,7 @@ cron)
   shift 1
   __cron "$@" &
   __log_info "Cron script is running with PID: $!"
-  exit
+  exit 0
   ;;
 # backup data and config dirs
 backup)
@@ -581,7 +590,7 @@ healthcheck)
         services+="$name "
       done
     fi
-    services="$(printf '%s\n' $services | sort -u | grep -v '^$')"
+    services="$(printf '%s\n' $services | sort -u | grep -v -- '^$')"
     for proc in $services; do
       if [ -n "$proc" ]; then
         if ! __pgrep "$proc"; then
@@ -592,7 +601,7 @@ healthcheck)
     done
     for port in $healthPorts; do
       if command -v netstat &>/dev/null && [ -n "$port" ]; then
-        if ! netstat -taupln | grep -q ":$port "; then
+        if ! netstat -taupln | grep -q -- ":$port "; then
           echo "$port isn't open" >&2
           healthStatus=$((healthStatus + 1))
         fi
@@ -622,7 +631,7 @@ ports)
   # show running processes
 procs)
   shift 1
-  ps="$(__ps axco command 2>/dev/null | grep -vE '^(COMMAND|grep|ps)$' | sort -u)"
+  ps="$(__ps axco command 2>/dev/null | grep -vE -- '^(COMMAND|grep|ps)$' | sort -u)"
   [ -n "$ps" ] && printf '%s\n%s\n' "Found the following processes" "$ps" | tr '\n' ' '
   exit $?
   ;;
@@ -659,7 +668,7 @@ start)
   if [ $# -eq 0 ]; then
     scripts="$(ls -A "/usr/local/etc/docker/init.d")"
     [ -n "$scripts" ] && echo "$scripts" || echo "No scripts found in: /usr/local/etc/docker/init.d"
-    exit
+    exit 0
   elif [ "$1" = "all" ]; then
     shift $#
     if [ "$START_SERVICES" = "yes" ]; then
