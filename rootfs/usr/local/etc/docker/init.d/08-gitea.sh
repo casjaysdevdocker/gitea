@@ -252,7 +252,7 @@ GITEA_SQL_HOST="${GITEA_SQL_HOST:-localhost}"
 GITEA_WORK_DIR="${GITEA_WORK_DIR:-$WORK_DIR}"
 TZ="${GITEA_TZ:-${TZ:-America/New_York}}"
 # Map container-generic protocol env vars to SERVICE_PROTOCOL
-SERVICE_PROTOCOL="${GITEA_PROTO:-${CONTAINER_PROTOCOL:-${CONTAINER_WEB_SERVER_PROTOCOL:-${SERVICE_PROTOCOL:-http}}}}"
+SERVICE_PROTOCOL="${GITEA_PROTO:-${CONTAINER_PROTOCOL:-${CONTAINER_WEB_SERVER_PROTOCOL:-${SERVICE_PROTOCOL:-https}}}}"
 # Map container-generic port env vars to SERVICE_PORT
 SERVICE_PORT="${WEB_PORT:-${ENV_PORTS:-${SERVICE_PORT:-80}}}"
 EMAIL_RELAY="${GITEA_EMAIL_RELAY:-${EMAIL_RELAY:-172.17.0.1}}"
@@ -427,7 +427,7 @@ __update_conf_files() {
 	for _ini_file in "$CONF_DIR/app.ini"; do
 		[ -f "$_ini_file" ] || continue
 		# Sync ROOT_URL, DOMAIN, and SSH_DOMAIN — prefer DOMAIN env var over raw hostname
-		sed -i "s|^ROOT_URL[[:space:]]*=.*|ROOT_URL = ${SERVICE_PROTOCOL:-http}://${SERVER_NAME}|" "$_ini_file"
+		sed -i "s|^ROOT_URL[[:space:]]*=.*|ROOT_URL = ${SERVICE_PROTOCOL:-https}://${SERVER_NAME}|" "$_ini_file"
 		sed -i "s|^DOMAIN[[:space:]]*=.*|DOMAIN = ${SERVER_NAME}|" "$_ini_file"
 		sed -i "s|^SSH_DOMAIN[[:space:]]*=.*|SSH_DOMAIN = ${SERVER_NAME}|" "$_ini_file"
 		# Remove deprecated [cors].X_FRAME_OPTIONS (moved to [security] in Gitea v1.26)
