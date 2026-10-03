@@ -64,7 +64,8 @@ services:
       TZ: ${TZ:-America/New_York}
       CONTAINER_NAME: casjaysdevdocker-gitea-latest
       HOSTNAME: ${BASE_HOST_NAME:-git.example.com}
-      GITEA_PROTO: http
+      # public protocol served by the proxy; must be https for passkeys
+      GITEA_PROTO: https
       DATABASE_DIR_SQLITE: /data/db/sqlite
     volumes:
       - ./volumes/data:/data:z
@@ -99,7 +100,8 @@ networks:
 | `GITEA_HOSTNAME` | _(empty)_ | Alias for `GITEA_SERVER` |
 | `FULL_DOMAIN_NAME` | _(empty)_ | Fallback FQDN used when neither `GITEA_SERVER` nor `GITEA_HOSTNAME` is set |
 | `DOMAIN` | _(empty)_ | Overrides the domain used in email addresses (takes precedence over `GITEA_SERVER`) |
-| `GITEA_PROTO` | `http` | Protocol used in ROOT\_URL (`http` or `https`) |
+| `GITEA_PROTO` | `https` | Public (browser-facing) protocol used in ROOT\_URL (`http` or `https`); use `https` behind a TLS reverse proxy |
+| `GITEA_ROOT_URL` | `$GITEA_PROTO://$DOMAIN/` | Full public URL; set it when the proxy uses a non-standard port or sub-path |
 | `GITEA_PORT` | `80` | Internal port Gitea listens on |
 | `GITEA_NAME` | `SelfHosted GIT Server` | Site title shown in the UI |
 | `GITEA_TZ` | `$TZ` | Override timezone for Gitea specifically |
@@ -133,6 +135,12 @@ networks:
 | `GITEA_SQL_PASS` | _(empty)_ | Database password (external DB only) |
 | `GITEA_SQL_NAME` | _(empty)_ | Database name (external DB only) |
 | `DATABASE_DIR_SQLITE` | `$DATA_DIR/db/sqlite` | Override the SQLite database directory (mount a separate volume here to keep the DB outside `/data`) |
+
+**Behind a TLS reverse proxy (passkeys/WebAuthn)** — passkeys only work when `ROOT_URL` matches the
+browser's address exactly and `DOMAIN` is the bare hostname. Set `DOMAIN` (or `GITEA_SERVER`) to the
+public hostname and keep `GITEA_PROTO=https`; Gitea keeps listening on plain http, marks session cookies
+`Secure`, and the proxy must forward `Host` and `X-Forwarded-Proto`. Use `GITEA_ROOT_URL` for a
+non-standard port or sub-path.
 
 **act\_runner**
 

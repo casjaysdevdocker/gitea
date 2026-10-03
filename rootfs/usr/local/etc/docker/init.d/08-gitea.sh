@@ -123,7 +123,20 @@ if [ -n "$SERVICE_NAME" ] && [ -f "/run/init.d/$SERVICE_NAME.pid" ]; then
 fi
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Custom functions
-
+# Set KEY = VALUE inside [SECTION] of an ini file, replacing an existing key or adding it to the section
+__gitea_ini_set() {
+	local ini_file="$1" section="$2" key="$3" value="$4" tmp_file
+	[ -f "$ini_file" ] || return 1
+	tmp_file="$(mktemp)" || return 1
+	awk -v s="[$section]" -v k="$key" -v v="$value" '
+		BEGIN { in_s = 0; done = 0 }
+		/^\[/ { if (in_s && !done) { print k " = " v; done = 1 } in_s = ($0 == s) }
+		in_s && $0 ~ "^" k "[[:space:]]*=" { if (!done) { print k " = " v; done = 1 } next }
+		{ print }
+		END { if (!done) { if (!in_s) print s; print k " = " v } }
+	' "$ini_file" >"$tmp_file" && cat "$tmp_file" >"$ini_file"
+	rm -f "$tmp_file"
+}
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Script to execute
 START_SCRIPT="/usr/local/etc/docker/exec/$SERVICE_NAME"
@@ -277,6 +290,10 @@ GITEA_SQL_TYPE="${ENV_GITEA_SQL_TYPE:-${GITEA_SQL_TYPE:-sqlite3}}"
 HOSTNAME="${GITEA_SERVER:-${GITEA_HOSTNAME:-${FULL_DOMAIN_NAME:-$(hostname -f 2>/dev/null || echo "$HOSTNAME")}}}"
 SERVER_NAME="${DOMAIN:-$HOSTNAME}"
 SERVER_PROTO="${SERVICE_PROTOCOL:-http}"
+# SERVICE_PROTOCOL is the public (browser-facing) protocol used for ROOT_URL; passkeys/WebAuthn
+# require ROOT_URL to match the browser origin exactly. Gitea itself always listens on plain http;
+# TLS is terminated by the reverse proxy, which must forward Host and X-Forwarded-Proto.
+GITEA_ROOT_URL="${GITEA_ROOT_URL:-${SERVICE_PROTOCOL:-https}://${SERVER_NAME}/}"
 # Feed SERVER_NAME back into FULL_DOMAIN_NAME so __initialize_replace_variables
 # uses DOMAIN (if set) rather than falling back to the raw HOSTNAME.
 export FULL_DOMAIN_NAME="$SERVER_NAME"
@@ -427,7 +444,15 @@ __update_conf_files() {
 	for _ini_file in "$CONF_DIR/app.ini"; do
 		[ -f "$_ini_file" ] || continue
 		# Sync ROOT_URL, DOMAIN, and SSH_DOMAIN — prefer DOMAIN env var over raw hostname
-		sed -i "s|^ROOT_URL[[:space:]]*=.*|ROOT_URL = ${SERVICE_PROTOCOL:-https}://${SERVER_NAME}|" "$_ini_file"
+		# ROOT_URL is the public origin (passkeys/WebAuthn match it exactly); always end with /
+		sed -i "s|^ROOT_URL[[:space:]]*=.*|ROOT_URL = ${GITEA_ROOT_URL%/}/|" "$_ini_file"
+		# Listen protocol is independent of ROOT_URL: always http, TLS lives on the reverse proxy
+		__gitea_ini_set "$_ini_file" server PROTOCOL http
+		# Mark the session cookie Secure whenever the public URL is https
+		case "$GITEA_ROOT_URL" in
+		https://*) __gitea_ini_set "$_ini_file" session COOKIE_SECURE true ;;
+		*) __gitea_ini_set "$_ini_file" session COOKIE_SECURE false ;;
+		esac
 		sed -i "s|^DOMAIN[[:space:]]*=.*|DOMAIN = ${SERVER_NAME}|" "$_ini_file"
 		sed -i "s|^SSH_DOMAIN[[:space:]]*=.*|SSH_DOMAIN = ${SERVER_NAME}|" "$_ini_file"
 		# Remove deprecated [cors].X_FRAME_OPTIONS (moved to [security] in Gitea v1.26)

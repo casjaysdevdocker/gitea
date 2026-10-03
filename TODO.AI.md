@@ -1,12 +1,22 @@
 # TODO.AI.md
 
-## Open — fresh container: Gitea fails to listen (PROTOCOL = https with no cert)
+## Open — generated `__create_ssl_cert` crashes the container (functions/entrypoint.sh)
 
-- Commit `7741c06` set `[server] PROTOCOL = REPLACE_SERVER_PROTO`; `08-gitea.sh` derives it from
-  `SERVICE_PROTOCOL`, which defaults to `https`. With no cert configured Gitea logs
-  `Failed to start server: open : no such file or directory` and never listens on :80, so
-  act_runner's prerun wait loop stalls. Workaround: `-e GITEA_PROTO=http`. Needs a decision:
-  listen protocol vs ROOT_URL protocol are likely meant to differ behind a TLS proxy.
+- With `SSL_ENABLED=yes` (e.g. `CONTAINER_WEB_SERVER_PROTOCOL=https` or `/config/enable/ssl`) and
+  no cert present, startup logs `valid for 0 year[s]` then `req: Can't parse "-nodes" as a number`
+  and the container exits 1 (empty days value passed to `openssl req -days`). The file is
+  generated, so the fix belongs in the upstream gen-dockerfile template, then regenerate.
+
+## Fixed — reverse-proxy/passkey support: ROOT_URL decoupled from listen protocol (08-gitea.sh)
+
+- Commit `7741c06` made `[server] PROTOCOL` follow `SERVICE_PROTOCOL` (default `https`), so a fresh
+  container had no cert and Gitea never listened. Per Gitea's reverse-proxy docs Gitea listens on
+  plain http and TLS lives on the proxy: `PROTOCOL` is now stamped `http` every startup,
+  `ROOT_URL` is stamped from `GITEA_ROOT_URL` (default `$SERVICE_PROTOCOL://$SERVER_NAME/`), and
+  `[session] COOKIE_SECURE` follows ROOT_URL's scheme. Passkeys use ROOT_URL as origin and DOMAIN
+  as RP ID (`modules/auth/webauthn`).
+- Verified in a fresh container: Gitea up on http, no cert created, ROOT_URL
+  `https://git.example.test/`, cookies `Secure`, passkey assertion `rpId: git.example.test`.
 
 ## Open — start-runners uses `set -e` instead of `set -eo pipefail`
 
