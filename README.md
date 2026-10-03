@@ -140,9 +140,14 @@ networks:
 |----------|---------|-------------|
 | `RUNNERS_START` | `5` | Number of act\_runner instances to register |
 | `RUNNER_CACHE_PORT` | `44015` | Port for the act\_runner cache server |
-| `RUNNER_IP_ADDRESS` | container IP | IP address act\_runner registers with Gitea |
-| `RUNNER_DEFAULT_HOME` | `/config/act_runner/gitea` | Directory where runner registration state is stored |
-| `RUNNER_CONFIG_NAME` | `act_runner.yaml` | Runner config filename inside `RUNNER_DEFAULT_HOME` |
+| `RUNNER_IP_ADDRESS` | `127.0.0.1` | IP address act\_runner registers with Gitea |
+| `RUNNER_DEFAULT_HOME` | `/config/act_runner/gitea` | Directory holding the base runner config |
+| `RUNNER_CONFIG_NAME` | `act_runner.yaml` | Base runner config filename inside `RUNNER_DEFAULT_HOME`; every runner gets a copy at `/config/act_runner/reg/runner-N/config.yaml` |
+| `RUNNER_CLEANUP_ENABLED` | `yes` | Periodically prune job containers, volumes, networks, build cache and images from the inner Docker daemon |
+| `RUNNER_CLEANUP_INTERVAL` | `60` | Minutes between cleanup runs |
+| `RUNNER_CLEANUP_UNTIL` | `72h` | Only prune stopped containers, networks and build cache older than this |
+| `RUNNER_CLEANUP_DISK_PERCENT` | `80` | Remove all unused images once `/data/docker` reaches this disk usage percent |
+| `RUNNER_CLEANUP_ACT_CACHE_DAYS` | `7` | Remove cloned actions in `~/.cache/act` unchanged for this many days (`0` disables) |
 | `ACT_RUNNER_FALLBACK_VERSION` | `v1.0.8` | Pinned act\_runner version used if gitea.com is unreachable during build |
 
 **Runner labels** are set automatically based on the host architecture. All jobs run inside Docker containers — no bare-metal execution.

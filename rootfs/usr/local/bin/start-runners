@@ -100,10 +100,13 @@ __log "Starting $RUNNERS_START act_runner instance(s)"
 __log "Server Address: $SERVER_ADDRESS"
 __log "Runner Name Prefix: ${RUNNER_NAME_PREFIX:-runner}"
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Shared cache config so runner-N instances use the same cache-server
-# started by zz-act_runner.sh instead of an unshared per-process cache.
+# Full base config (container/runner/host/cache settings) rendered by zz-act_runner.sh.
+# Falls back to a cache-only config so runner-N instances still share the cache-server.
 RUNNERS_CACHE_CONFIG=""
-if [ -n "$RUNNER_CACHE_HOST" ] && [ -n "$RUNNER_CACHE_PORT" ] && [ -n "$RUNNER_CACHE_SECRET" ]; then
+if [ -n "$RUNNERS_CONFIG_BASE" ] && [ -f "$RUNNERS_CONFIG_BASE" ]; then
+	__log "Base config: $RUNNERS_CONFIG_BASE"
+elif [ -n "$RUNNER_CACHE_HOST" ] && [ -n "$RUNNER_CACHE_PORT" ] && [ -n "$RUNNER_CACHE_SECRET" ]; then
+	RUNNERS_CONFIG_BASE=""
 	RUNNERS_CACHE_CONFIG="/config/act_runner/runners-cache.yaml"
 	cat <<EOF >"$RUNNERS_CACHE_CONFIG"
 cache:
@@ -111,7 +114,21 @@ cache:
   external_server: 'http://${RUNNER_CACHE_HOST}:${RUNNER_CACHE_PORT}/'
   external_secret: '${RUNNER_CACHE_SECRET}'
 EOF
+else
+	RUNNERS_CONFIG_BASE=""
 fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Print the config a runner uses; per-runner copy of the base config with its own runner.file
+__runner_config() {
+	local runner_dir=$1
+	local runner_config="$runner_dir/config.yaml"
+	if [ -n "$RUNNERS_CONFIG_BASE" ]; then
+		sed "s|^\([[:space:]]*\)file:.*|\1file: $runner_dir/.runner|" "$RUNNERS_CONFIG_BASE" >"$runner_config" || return 1
+		echo "$runner_config"
+	elif [ -n "$RUNNERS_CACHE_CONFIG" ]; then
+		echo "$RUNNERS_CACHE_CONFIG"
+	fi
+}
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Register a single runner synchronously (no daemon start)
 __register_runner() {
@@ -119,10 +136,12 @@ __register_runner() {
 	local runner_name="${RUNNER_NAME_PREFIX:-runner}-${runner_id}"
 	local runner_dir="/config/act_runner/reg/${runner_name}"
 	local config_args=()
+	local runner_config=""
 
 	mkdir -p "$runner_dir"
 	[ -d "$runner_dir" ] && cd "$runner_dir" || return 1
-	[ -n "$RUNNERS_CACHE_CONFIG" ] && config_args=(--config "$RUNNERS_CACHE_CONFIG")
+	runner_config="$(__runner_config "$runner_dir")" || return 1
+	[ -n "$runner_config" ] && config_args=(--config "$runner_config")
 
 	if [ ! -f "$runner_dir/.runner" ]; then
 		__log "Registering runner: $runner_name (ID: $runner_id)"
@@ -141,9 +160,11 @@ __start_runner_daemon() {
 	local runner_name="${RUNNER_NAME_PREFIX:-runner}-${runner_id}"
 	local runner_dir="/config/act_runner/reg/${runner_name}"
 	local config_args=()
+	local runner_config=""
 
 	[ -d "$runner_dir" ] && cd "$runner_dir" || return 1
-	[ -n "$RUNNERS_CACHE_CONFIG" ] && config_args=(--config "$RUNNERS_CACHE_CONFIG")
+	runner_config="$(__runner_config "$runner_dir")" || return 1
+	[ -n "$runner_config" ] && config_args=(--config "$runner_config")
 	__log "Starting daemon for runner: $runner_name"
 	exec act_runner daemon "${config_args[@]}"
 }

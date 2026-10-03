@@ -1,0 +1,106 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+##@Version           :  202610031200-git
+# @@Author           :  Jason Hempstead
+# @@Contact          :  jason@casjaysdev.pro
+# @@License          :  LICENSE.md
+# @@ReadME           :  cleanup-runners --help
+# @@Copyright        :  Copyright: (c) 2026 Jason Hempstead, Casjays Developments
+# @@Created          :  Saturday, Oct 03, 2026 12:00 EDT
+# @@File             :  cleanup-runners
+# @@Description      :  Prune docker and act cache leftovers from act runner jobs
+# @@Changelog        :  New script
+# @@TODO             :  Better documentation
+# @@Other            :
+# @@Resource         :
+# @@Terminal App     :  no
+# @@sudo/root        :  no
+# @@Template         :  shell/bash
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+# shellcheck disable=SC1001,SC1003,SC2001,SC2003,SC2016,SC2031,SC2090,SC2115,SC2120,SC2155,SC2199,SC2229,SC2317,SC2329
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+VERSION="202610031200-git"
+set -eo pipefail
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Settings - all overridable via environment
+# Only prune containers/networks/build cache older than this (docker duration, e.g. 72h)
+RUNNER_CLEANUP_UNTIL="${RUNNER_CLEANUP_UNTIL:-72h}"
+# Remove all unused images (not just dangling) once the docker data dir reaches this usage percent
+RUNNER_CLEANUP_DISK_PERCENT="${RUNNER_CLEANUP_DISK_PERCENT:-80}"
+# Directory holding the nested dockerd's data, used for the disk usage check
+RUNNER_CLEANUP_DOCKER_DIR="${RUNNER_CLEANUP_DOCKER_DIR:-/data/docker}"
+# Remove cloned actions in act's cache that have not changed in this many days (0 disables)
+RUNNER_CLEANUP_ACT_CACHE_DAYS="${RUNNER_CLEANUP_ACT_CACHE_DAYS:-7}"
+# Space separated list of act action cache directories
+RUNNER_CLEANUP_ACT_CACHE_DIRS="${RUNNER_CLEANUP_ACT_CACHE_DIRS:-$HOME/.cache/act /root/.cache/act}"
+RUNNER_CLEANUP_LOG_FILE="${RUNNER_CLEANUP_LOG_FILE:-/data/logs/act_runner/cleanup.log}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+__log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] $*" >>"$RUNNER_CLEANUP_LOG_FILE" 2>&1; }
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Run a prune command, log its reclaimed-space line; a failure is logged, never fatal
+__prune() {
+	local output=""
+	if output="$("$@" 2>&1)"; then
+		__log "$* :: $(printf '%s\n' "$output" | grep -i -- 'reclaimed' | tail -n1)"
+	else
+		__log "FAILED: $* :: $output"
+	fi
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Print the usage percent of the filesystem holding $1
+__disk_percent() {
+	df -P "$1" 2>/dev/null | awk 'NR==2 {gsub("%", "", $5); print $5}'
+}
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+	printf '%s\n' "Usage: cleanup-runners [--help|--version]" \
+		"Prunes docker containers, volumes, networks, build cache and images left by act runner jobs." \
+		"Env: RUNNER_CLEANUP_UNTIL RUNNER_CLEANUP_DISK_PERCENT RUNNER_CLEANUP_DOCKER_DIR" \
+		"     RUNNER_CLEANUP_ACT_CACHE_DAYS RUNNER_CLEANUP_ACT_CACHE_DIRS RUNNER_CLEANUP_LOG_FILE"
+	exit 0
+elif [ "$1" = "--version" ]; then
+	echo "$VERSION"
+	exit 0
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+mkdir -p "$(dirname -- "$RUNNER_CLEANUP_LOG_FILE")"
+if ! docker info >/dev/null 2>&1; then
+	__log "docker is not reachable, skipping docker cleanup"
+else
+	__log "Starting cleanup"
+	# Exited job containers left behind when a runner died mid-job (running containers are never touched)
+	__prune docker container prune -f --filter "until=$RUNNER_CLEANUP_UNTIL"
+	# Job networks that no container uses anymore
+	__prune docker network prune -f --filter "until=$RUNNER_CLEANUP_UNTIL"
+	# Unused act-* job volumes; docker recreates a named volume if a starting job needs it
+	act_volumes="$(docker volume ls -q --filter dangling=true --filter name=act- 2>/dev/null || true)"
+	if [ -n "$act_volumes" ]; then
+		# shellcheck disable=SC2086
+		__prune docker volume rm $act_volumes
+	fi
+	# Anonymous volumes no container uses
+	__prune docker volume prune -f
+	# Build cache from jobs that run docker build
+	__prune docker builder prune -af --filter "until=$RUNNER_CLEANUP_UNTIL"
+	# Untagged (dangling) images
+	__prune docker image prune -f
+	# Every image not used by a container, only when disk is getting full; jobs re-pull what they need
+	disk_used="$(__disk_percent "$RUNNER_CLEANUP_DOCKER_DIR" || true)"
+	if [[ "$disk_used" =~ ^[0-9]+$ ]] && [ "$disk_used" -ge "$RUNNER_CLEANUP_DISK_PERCENT" ]; then
+		__log "$RUNNER_CLEANUP_DOCKER_DIR is ${disk_used}% used (limit ${RUNNER_CLEANUP_DISK_PERCENT}%), removing unused images"
+		__prune docker image prune -af
+	fi
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Cloned actions (one directory per action@ref) that have not been updated recently
+if [[ "$RUNNER_CLEANUP_ACT_CACHE_DAYS" =~ ^[1-9][0-9]*$ ]]; then
+	for act_cache_dir in $RUNNER_CLEANUP_ACT_CACHE_DIRS; do
+		[ -d "$act_cache_dir" ] || continue
+		removed="$(find "$act_cache_dir" -mindepth 1 -maxdepth 1 -mtime +"$RUNNER_CLEANUP_ACT_CACHE_DAYS" 2>/dev/null | wc -l || true)"
+		find "$act_cache_dir" -mindepth 1 -maxdepth 1 -mtime +"$RUNNER_CLEANUP_ACT_CACHE_DAYS" -exec rm -rf {} + 2>/dev/null || true
+		__log "Removed $removed stale entries from $act_cache_dir"
+	done
+fi
+__log "Cleanup finished"
+exit 0

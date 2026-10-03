@@ -341,6 +341,10 @@ RUNNER_CACHE_HOST="${RUNNER_CACHE_HOST:-$IP4_ADDRESS}"
 CACHE_CONFIG_FILE="${CACHE_CONFIG_FILE:-$CONF_DIR/cache_server.yaml}"
 CACHE_LOG_FILE="${CACHE_LOG_FILE:-$LOG_DIR/cache.log}"
 RUNNER_CACHE_SECRET="${RUNNER_CACHE_SECRET:-}"
+# Periodic prune of the nested dockerd and act's action cache (see /usr/local/bin/cleanup-runners)
+RUNNER_CLEANUP_ENABLED="${RUNNER_CLEANUP_ENABLED:-yes}"
+RUNNER_CLEANUP_INTERVAL="${RUNNER_CLEANUP_INTERVAL:-60}"
+RUNNER_CLEANUP_LOG_FILE="${RUNNER_CLEANUP_LOG_FILE:-$LOG_DIR/cleanup.log}"
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Additional variables
 
@@ -523,6 +527,8 @@ __post_execute() {
 	export SERVER_ADDRESS="$RUNNER_IP_ADDRESS:$GITEA_PORT" SERVER_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 	export RUNNER_CACHE_HOST RUNNER_CACHE_PORT
 	export RUNNER_CACHE_SECRET="${RUNNER_CACHE_SECRET:-$(__gen_cache_secret)}"
+	# full rendered config so runner-N daemons get the container/runner/host settings too
+	export RUNNERS_CONFIG_BASE="$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME"
 
 	# wait
 	sleep $waitTime
@@ -567,6 +573,16 @@ __post_execute() {
 			# subshell's job table; otherwise bash can block waiting on it when this
 			# subshell (itself the left side of the __post_execute pipe) reaches its end
 			disown "$!" 2>/dev/null || true
+		fi
+		# periodic cleanup loop; output goes to a real file for the same fd-leak reason as above
+		if [ "$RUNNER_CLEANUP_ENABLED" = "yes" ] && [ -x "/usr/local/bin/cleanup-runners" ]; then
+			[[ "$RUNNER_CLEANUP_INTERVAL" =~ ^[1-9][0-9]*$ ]] || RUNNER_CLEANUP_INTERVAL="60"
+			(
+				export RUNNER_CLEANUP_LOG_FILE
+				CRON_NAME="cleanup-runners" __cron "$RUNNER_CLEANUP_INTERVAL" /usr/local/bin/cleanup-runners
+			) >>"$RUNNER_CLEANUP_LOG_FILE" 2>&1 &
+			disown "$!" 2>/dev/null || true
+			echo "Runner cleanup scheduled every $RUNNER_CLEANUP_INTERVAL minutes"
 		fi
 		# show exit message
 		__banner "$postMessageEnd: Status $retVal"

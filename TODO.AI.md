@@ -1,5 +1,42 @@
 # TODO.AI.md
 
+## Open — fresh container: Gitea fails to listen (PROTOCOL = https with no cert)
+
+- Commit `7741c06` set `[server] PROTOCOL = REPLACE_SERVER_PROTO`; `08-gitea.sh` derives it from
+  `SERVICE_PROTOCOL`, which defaults to `https`. With no cert configured Gitea logs
+  `Failed to start server: open : no such file or directory` and never listens on :80, so
+  act_runner's prerun wait loop stalls. Workaround: `-e GITEA_PROTO=http`. Needs a decision:
+  listen protocol vs ROOT_URL protocol are likely meant to differ behind a TLS proxy.
+
+## Open — start-runners uses `set -e` instead of `set -eo pipefail`
+
+- `rootfs/usr/local/bin/start-runners` carries `@@Template : shell/bash`, which AI.md PART 5
+  requires to use `set -eo pipefail`.
+
+## Open — sample env var injected into every CI job (default_config.yaml)
+
+- `runner.envs` still contains the upstream example `A_TEST_ENV_NAME_1: a_test_env_value_1`;
+  now that runner-N daemons use this config, every job receives it.
+
+## Fixed — act_runner cleanup of nested-dockerd leftovers (cleanup-runners)
+
+- New `rootfs/usr/local/bin/cleanup-runners`: prunes stopped containers/networks/build cache
+  older than `RUNNER_CLEANUP_UNTIL`, dangling `act-*` volumes, anonymous volumes, dangling
+  images, all unused images when `/data/docker` usage reaches `RUNNER_CLEANUP_DISK_PERCENT`, and
+  stale `~/.cache/act` clones. `zz-act_runner.sh` `__post_execute` runs it via `__cron` every
+  `RUNNER_CLEANUP_INTERVAL` minutes (log: `/data/logs/act_runner/cleanup.log`).
+- Verified in a fresh privileged container: loop ran repeatedly with no failures; a seeded stopped
+  container, `act-*` volume and unused image were removed while an unrelated volume was kept.
+
+## Fixed — runner-N daemons now use the full default_config.yaml (start-runners)
+
+- `zz-act_runner.sh` exports `RUNNERS_CONFIG_BASE` (the rendered
+  `$RUNNER_DEFAULT_HOME/$RUNNER_CONFIG_NAME`); `start-runners` writes a per-runner
+  `reg/runner-N/config.yaml` copy with `runner.file` pointed at that runner's `.runner`, and
+  passes it to `register`/`daemon`. Cache-only `runners-cache.yaml` kept as fallback.
+- Verified: both runners registered with the per-runner config and show as online in
+  `action_runner` (last_online within seconds).
+
 ## Lint cleanup done — UUOC fixed (start-runners)
 
 Verified clean by `script-lint` agent after fix.
