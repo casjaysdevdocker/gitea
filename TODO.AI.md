@@ -7,6 +7,16 @@
   and the container exits 1 (empty days value passed to `openssl req -days`). The file is
   generated, so the fix belongs in the upstream gen-dockerfile template, then regenerate.
 
+## Fixed — Gitea retention/cleanup defaults (app.ini, 08-gitea.sh)
+
+- Template: `[actions]` artifacts 30d, logs 90d, runs 180d; enabled `cron.gc_lfs` (daily),
+  `cron.git_gc_repos` (weekly, 30m timeout), `cron.delete_old_actions` (1y),
+  `cron.delete_old_system_notices` (90d); explicit `cron.cleanup_actions`/`cleanup_action_runs`.
+- `08-gitea.sh` adds `__gitea_ini_default` (set only if the key is missing) so existing configs pick
+  these up without overriding user values (existing `ARTIFACT_RETENTION_DAYS` is left as-is).
+- Verified: upgrade of the previous template is idempotent and keeps a custom value; fresh container's
+  `/api/v1/admin/cron` lists all tasks with the expected schedules, no config warnings in gitea.log.
+
 ## Fixed — reverse-proxy/passkey support: ROOT_URL decoupled from listen protocol (08-gitea.sh)
 
 - Commit `7741c06` made `[server] PROTOCOL` follow `SERVICE_PROTOCOL` (default `https`), so a fresh

@@ -137,6 +137,19 @@ __gitea_ini_set() {
 	' "$ini_file" >"$tmp_file" && cat "$tmp_file" >"$ini_file"
 	rm -f "$tmp_file"
 }
+# Set KEY = VALUE inside [SECTION] only when the key is not already present (keeps user choices)
+__gitea_ini_default() {
+	local ini_file="$1" section="$2" key="$3" value="$4"
+	[ -f "$ini_file" ] || return 1
+	if awk -v s="[$section]" -v k="$key" '
+		/^\[/ { in_s = ($0 == s) }
+		in_s && $0 ~ "^" k "[[:space:]]*=" { found = 1; exit }
+		END { exit !found }
+	' "$ini_file"; then
+		return 0
+	fi
+	__gitea_ini_set "$ini_file" "$section" "$key" "$value"
+}
 # - - - - - - - - - - - - - - - - - - - - - - - - -
 # Script to execute
 START_SCRIPT="/usr/local/etc/docker/exec/$SERVICE_NAME"
@@ -453,6 +466,18 @@ __update_conf_files() {
 		https://*) __gitea_ini_set "$_ini_file" session COOKIE_SECURE true ;;
 		*) __gitea_ini_set "$_ini_file" session COOKIE_SECURE false ;;
 		esac
+		# Retention/cleanup defaults for configs created before they were added to the template
+		__gitea_ini_default "$_ini_file" actions LOG_RETENTION_DAYS 90
+		__gitea_ini_default "$_ini_file" actions RUN_RETENTION_DAYS 180
+		__gitea_ini_default "$_ini_file" cron.gc_lfs ENABLED true
+		__gitea_ini_default "$_ini_file" cron.gc_lfs SCHEDULE "@every 24h"
+		__gitea_ini_default "$_ini_file" cron.git_gc_repos ENABLED true
+		__gitea_ini_default "$_ini_file" cron.git_gc_repos SCHEDULE "@every 168h"
+		__gitea_ini_default "$_ini_file" cron.git_gc_repos TIMEOUT 30m
+		__gitea_ini_default "$_ini_file" cron.delete_old_actions ENABLED true
+		__gitea_ini_default "$_ini_file" cron.delete_old_actions OLDER_THAN 8760h
+		__gitea_ini_default "$_ini_file" cron.delete_old_system_notices ENABLED true
+		__gitea_ini_default "$_ini_file" cron.delete_old_system_notices OLDER_THAN 2160h
 		sed -i "s|^DOMAIN[[:space:]]*=.*|DOMAIN = ${SERVER_NAME}|" "$_ini_file"
 		sed -i "s|^SSH_DOMAIN[[:space:]]*=.*|SSH_DOMAIN = ${SERVER_NAME}|" "$_ini_file"
 		# Remove deprecated [cors].X_FRAME_OPTIONS (moved to [security] in Gitea v1.26)

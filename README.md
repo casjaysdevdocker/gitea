@@ -142,6 +142,11 @@ public hostname and keep `GITEA_PROTO=https`; Gitea keeps listening on plain htt
 `Secure`, and the proxy must forward `Host` and `X-Forwarded-Proto`. Use `GITEA_ROOT_URL` for a
 non-standard port or sub-path.
 
+**Retention** — Actions artifacts are kept 30 days, job logs 90 days and run history 180 days.
+Gitea's cron also garbage-collects orphaned LFS objects daily, runs `git gc` weekly, and prunes
+activity-feed entries older than 1 year and system notices older than 90 days. Edit
+`/config/gitea/app.ini` to change these; existing values are never overwritten on startup.
+
 **act\_runner**
 
 | Variable | Default | Description |
