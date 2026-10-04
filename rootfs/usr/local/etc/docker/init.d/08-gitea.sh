@@ -345,7 +345,7 @@ __run_precopy() {
 	# during container startup, after the entrypoint's initial copy. Applying it here
 	# (in the init.d phase) ensures it takes effect after Docker finishes network setup.
 	[ -f "/usr/local/etc/resolv.conf" ] && cp -f "/usr/local/etc/resolv.conf" "/etc/resolv.conf" 2>/dev/null || true
-	# Seed /config/$SERVICE_NAME from the baked /etc copy on first initialisation only.
+	# Seed /config/$SERVICE_NAME from the baked /etc copy on first initialisation only; cp -n never overwrites existing user files.
 	# The marker file $CONF_DIR/.initialized is written after substitution completes;
 	# delete it to force a re-seed (e.g. after intentional config reset).
 	# Then replace the /etc/$SERVICE_NAME directory with a symlink to /config/$SERVICE_NAME
@@ -353,7 +353,7 @@ __run_precopy() {
 	if [ -d "$ETC_DIR" ] && ! [ -L "$ETC_DIR" ]; then
 		if [ ! -f "$CONF_DIR/.initialized" ]; then
 			mkdir -p "$CONF_DIR"
-			cp -Rf "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
+			cp -Rn "$ETC_DIR/." "$CONF_DIR/" 2>/dev/null || true
 		fi
 		rm -Rf "$ETC_DIR"
 		ln -sf "$CONF_DIR" "$ETC_DIR"

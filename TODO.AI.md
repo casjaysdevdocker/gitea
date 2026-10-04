@@ -7,6 +7,17 @@
   and the container exits 1 (empty days value passed to `openssl req -days`). The file is
   generated, so the fix belongs in the upstream gen-dockerfile template, then regenerate.
 
+## Fixed — startup overwrote user config when `.initialized` marker was missing (init.d seed copy)
+
+- `__run_precopy` in `08-gitea.sh`, `05-dockerd.sh` and `zz-act_runner.sh` did
+  `cp -Rf "$ETC_DIR/." "$CONF_DIR/"` whenever `$CONF_DIR/.initialized` was absent (since commit
+  `42d0439`), replacing an existing `app.ini` with the template: custom settings lost and
+  SECRET_KEY/INTERNAL_TOKEN/LFS_JWT_SECRET regenerated. Now `cp -Rn` (fills missing files, never
+  overwrites). Verified with a real 428-line `app.ini` and no marker: all lines and all four secrets
+  preserved; before the fix the same test changed SECRET_KEY and INTERNAL_TOKEN.
+- The same `__run_precopy` block is generated: the upstream start-service template needs the same
+  `cp -Rn` change or the next regeneration will bring the bug back.
+
 ## Fixed — Gitea retention/cleanup defaults (app.ini, 08-gitea.sh)
 
 - Template: `[actions]` artifacts 30d, logs 90d, runs 180d; enabled `cron.gc_lfs` (daily),
