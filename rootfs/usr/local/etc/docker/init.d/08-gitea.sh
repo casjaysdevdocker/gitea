@@ -137,6 +137,27 @@ __gitea_ini_set() {
 	' "$ini_file" >"$tmp_file" && cat "$tmp_file" >"$ini_file"
 	rm -f "$tmp_file"
 }
+# Remove KEY from [SECTION] of an ini file, leaving everything else untouched
+__gitea_ini_unset() {
+	local ini_file="$1" section="$2" key="$3" tmp_file
+	[ -f "$ini_file" ] || return 1
+	tmp_file="$(mktemp)" || return 1
+	awk -v s="[$section]" -v k="$key" '
+		/^\[/ { in_s = ($0 == s) }
+		in_s && $0 ~ "^" k "[[:space:]]*=" { next }
+		{ print }
+	' "$ini_file" >"$tmp_file" && cat "$tmp_file" >"$ini_file"
+	rm -f "$tmp_file"
+}
+# Print the value of KEY in [SECTION], empty when absent
+__gitea_ini_get() {
+	local ini_file="$1" section="$2" key="$3"
+	[ -f "$ini_file" ] || return 1
+	awk -v s="[$section]" -v k="$key" '
+		/^\[/ { in_s = ($0 == s) }
+		in_s && $0 ~ "^" k "[[:space:]]*=" { v = substr($0, index($0, "=") + 1); gsub(/^[[:space:]]+|[[:space:]]+$/, "", v); print v; exit }
+	' "$ini_file"
+}
 # Set KEY = VALUE inside [SECTION] only when the key is not already present (keeps user choices)
 __gitea_ini_default() {
 	local ini_file="$1" section="$2" key="$3" value="$4"
@@ -478,6 +499,21 @@ __update_conf_files() {
 		__gitea_ini_default "$_ini_file" cron.delete_old_actions OLDER_THAN 8760h
 		__gitea_ini_default "$_ini_file" cron.delete_old_system_notices ENABLED true
 		__gitea_ini_default "$_ini_file" cron.delete_old_system_notices OLDER_THAN 2160h
+		# Gitea 28 migration: a catch-all "*" host is rejected and logged as an error, so private and
+		# loopback are listed explicitly. A real value from the deprecated [webhook] key is moved to [security]
+		_hosts_sec="$(__gitea_ini_get "$_ini_file" security ALLOWED_HOST_LIST)"
+		_hosts_wh="$(__gitea_ini_get "$_ini_file" webhook ALLOWED_HOST_LIST)"
+		[ "$_hosts_sec" = "*" ] && _hosts_sec=""
+		[ "$_hosts_wh" = "*" ] && _hosts_wh=""
+		_hosts_sec="${_hosts_sec:-${_hosts_wh:-private,loopback}}"
+		__gitea_ini_set "$_ini_file" security ALLOWED_HOST_LIST "$_hosts_sec"
+		__gitea_ini_unset "$_ini_file" webhook ALLOWED_HOST_LIST
+		unset _hosts_sec _hosts_wh
+		# [migrations] (plural) is the real section; the old [migration] block was ignored by Gitea
+		__gitea_ini_default "$_ini_file" migrations ALLOWED_HOST_LIST "private,loopback"
+		# Stating the egress mode explicitly keeps Gitea's default (lax) and silences its startup warning
+		__gitea_ini_default "$_ini_file" security EGRESS_MODE lax
+		__gitea_ini_default "$_ini_file" migrations EGRESS_MODE lax
 		sed -i "s|^DOMAIN[[:space:]]*=.*|DOMAIN = ${SERVER_NAME}|" "$_ini_file"
 		sed -i "s|^SSH_DOMAIN[[:space:]]*=.*|SSH_DOMAIN = ${SERVER_NAME}|" "$_ini_file"
 		# Remove deprecated [cors].X_FRAME_OPTIONS (moved to [security] in Gitea v1.26)

@@ -7,6 +7,27 @@
   and the container exits 1 (empty days value passed to `openssl req -days`). The file is
   generated, so the fix belongs in the upstream gen-dockerfile template, then regenerate.
 
+## Fixed — app.ini migrated for Gitea 28.0.0 (template + startup)
+
+- Audited against the Gitea source and the 28.0.0 binary's own startup log. Findings: `[security]
+  ALLOWED_HOST_LIST = *` is rejected (logged `[E]`); `[migration]` is not a section (real name
+  `[migrations]`, so SKIP_TLS_VERIFY and the host settings under it were silently ignored);
+  `ALLOWED_DOMAINS`/`BLOCKED_DOMAINS`/`ALLOW_LOCALNETWORKS` deprecated since v28 in favour of
+  `ALLOWED_HOST_LIST`/`BLOCKED_HOST_LIST`; dead keys `[security] COOKIE_USERNAME`/`COOKIE_SECURE`,
+  `[server] LETSENCRYPT_ACCEPTTOS`, `[git.timeout] DEFAULT/CLONE/PULL`, `[cors] SCHEME/ALLOW_SUBDOMAIN`;
+  `[notify.email]` is not a section (`ENABLE_NOTIFY_MAIL` is in `[service]`).
+- Template: fixed/removed all of the above; `ALLOWED_HOST_LIST = private,loopback` and explicit
+  `EGRESS_MODE = lax` in `[security]` and `[migrations]`; added `WORK_PATH`, `LOCAL_ROOT_URL`; matched live
+  values `DISABLE_REGISTRATION = true`, `ALLOW_LOCALNETWORKS` intent (now via ALLOWED_HOST_LIST).
+- `08-gitea.sh` migrates existing configs on start: `*` becomes `private,loopback` (a real value in the
+  deprecated `[webhook]` key is moved to `[security]`), `[migrations]` host list and `EGRESS_MODE` are
+  added only when missing. Dead keys are left in place (ignored by Gitea).
+- Verified with the real image: a fresh install and an upgrade of a real customised config both start with
+  zero `[E]` and, for the upgrade, zero warnings. Kept on purpose: `DISABLE_QUERY_AUTH_TOKEN = false` (an
+  earlier deliberate pin) so a fresh install still logs its one warning.
+- Behaviour now actually in effect (was silently ignored before): `[migrations] SKIP_TLS_VERIFY = true`
+  and migrations/mirrors may reach private and loopback hosts. Needs the owner's confirmation.
+
 ## Fixed — startup overwrote user config when `.initialized` marker was missing (init.d seed copy)
 
 - `__run_precopy` in `08-gitea.sh`, `05-dockerd.sh` and `zz-act_runner.sh` did
