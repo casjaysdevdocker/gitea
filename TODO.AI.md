@@ -23,8 +23,8 @@
   deprecated `[webhook]` key is moved to `[security]`), `[migrations]` host list and `EGRESS_MODE` are
   added only when missing. Dead keys are left in place (ignored by Gitea).
 - Verified with the real image: a fresh install and an upgrade of a real customised config both start with
-  zero `[E]` and, for the upgrade, zero warnings. Kept on purpose: `DISABLE_QUERY_AUTH_TOKEN = false` (an
-  earlier deliberate pin) so a fresh install still logs its one warning.
+  zero `[E]` and, for the upgrade, zero warnings. `DISABLE_QUERY_AUTH_TOKEN = false` pin removed at the
+  owner's request (28 still defaults to false, so no behaviour change; the startup warning is gone).
 - Behaviour now actually in effect (was silently ignored before): `[migrations] SKIP_TLS_VERIFY = true`
   and migrations/mirrors may reach private and loopback hosts. Needs the owner's confirmation.
 
