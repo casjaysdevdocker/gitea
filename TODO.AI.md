@@ -7,6 +7,18 @@
   and the container exits 1 (empty days value passed to `openssl req -days`). The file is
   generated, so the fix belongs in the upstream gen-dockerfile template, then regenerate.
 
+## Fixed — existing runners kept a stale server address and could not reach Gitea (start-runners)
+
+- `act_runner register` stores the server address in each `reg/runner-N/.runner`, and `start-runners`
+  skips registration when that file exists. Runners registered before the `127.0.0.1` default (when it
+  was the container IP) kept e.g. `http://172.17.0.3:80`; after a restart that IP no longer belongs to
+  Gitea, so every `Declare` call hung until the 60s client timeout (`deadline_exceeded`).
+- `start-runners` now rewrites `address` in each existing `.runner` to the current `SERVER_ADDRESS` on
+  every start (logged as `Updating runner-N server address`). Registration, UUIDs and labels untouched.
+- Verified: fresh start of 5 runners, then all 5 `.runner` files forced to `172.17.0.3:80` and the
+  container recreated on the same volumes: all 5 rewritten to `127.0.0.1:80`, 0 errors, and all 5 listed
+  online in Gitea's `action_runner` table (last_online seconds ago).
+
 ## Fixed — app.ini migrated for Gitea 28.0.0 (template + startup)
 
 - Audited against the Gitea source and the 28.0.0 binary's own startup log. Findings: `[security]

@@ -151,6 +151,12 @@ __register_runner() {
 			return 1
 		fi
 	fi
+	# .runner stores the server address from registration; a container IP baked in earlier goes stale
+	# after a restart, so point it at the current SERVER_ADDRESS every start
+	if [ -f "$runner_dir/.runner" ] && ! grep -q -F -- "\"address\": \"$SERVER_ADDRESS\"" "$runner_dir/.runner"; then
+		__log "Updating $runner_name server address to $SERVER_ADDRESS"
+		sed -i "s|\"address\": *\"[^\"]*\"|\"address\": \"$SERVER_ADDRESS\"|" "$runner_dir/.runner"
+	fi
 	__log "Runner $runner_name registered"
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
