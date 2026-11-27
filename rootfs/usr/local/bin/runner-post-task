@@ -1,0 +1,57 @@
+#!/usr/bin/env bash
+# shellcheck shell=bash
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+##@Version           :  202611271200-git
+# @@Author           :  Jason Hempstead
+# @@Contact          :  jason@casjaysdev.pro
+# @@License          :  LICENSE.md
+# @@ReadME           :  runner-post-task --help
+# @@Copyright        :  Copyright: (c) 2026 Jason Hempstead, Casjays Developments
+# @@Created          :  Friday, Nov 27, 2026 12:00 EST
+# @@File             :  runner-post-task
+# @@Description      :  Prune nested docker leftovers after every act runner task
+# @@Changelog        :  New script
+# @@TODO             :  Better documentation
+# @@Other            :
+# @@Resource         :
+# @@Terminal App     :  no
+# @@sudo/root        :  no
+# @@Template         :  shell/bash
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+# shellcheck disable=SC1001,SC1003,SC2001,SC2003,SC2016,SC2031,SC2090,SC2115,SC2120,SC2155,SC2199,SC2229,SC2317,SC2329
+# - - - - - - - - - - - - - - - - - - - - - - - - -
+VERSION="202611271200-git"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+# Settings - all overridable via environment
+# Free space (MiB) on the nested docker's filesystem below which every unused image is removed too
+RUNNER_CLEANUP_MIN_FREE_MB="${RUNNER_CLEANUP_MIN_FREE_MB:-204800}"
+RUNNER_CLEANUP_LOG_FILE="${RUNNER_CLEANUP_LOG_FILE:-/data/logs/act_runner/cleanup.log}"
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+__log() { echo "[$(date '+%Y-%m-%d %H:%M:%S')] post-task: $*" >>"$RUNNER_CLEANUP_LOG_FILE" 2>&1; }
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
+	printf '%s\n' "Usage: runner-post-task [--help|--version]" \
+		"Runs after every act runner task: prunes stopped containers, dangling images, build cache and unused volumes" \
+		"of the nested docker, and every unused image when free space is low." \
+		"Env: RUNNER_CLEANUP_MIN_FREE_MB RUNNER_CLEANUP_LOG_FILE"
+	exit 0
+elif [ "$1" = "--version" ]; then
+	echo "$VERSION"
+	exit 0
+fi
+# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+mkdir -p "$(dirname -- "$RUNNER_CLEANUP_LOG_FILE")"
+# Never fail the runner: this is additive housekeeping and a non-zero exit only logs a warning
+docker info >/dev/null 2>&1 || exit 0
+# Containers other jobs are still using are never touched; only stopped ones older than 30 minutes go
+docker container prune -f --filter "until=30m" >/dev/null 2>&1
+docker image prune -f >/dev/null 2>&1
+docker builder prune -f --filter "until=1h" >/dev/null 2>&1
+docker volume prune -f >/dev/null 2>&1
+docker_root="$(docker info -f '{{.DockerRootDir}}' 2>/dev/null)"
+free_mb="$(df -Pm "${docker_root:-/var/lib/docker}" 2>/dev/null | awk 'NR==2 {print $4}')"
+if [[ "$free_mb" =~ ^[0-9]+$ ]] && [ "$free_mb" -lt "$RUNNER_CLEANUP_MIN_FREE_MB" ]; then
+	__log "only ${free_mb} MiB free (limit ${RUNNER_CLEANUP_MIN_FREE_MB}), removing unused images"
+	docker image prune -af >/dev/null 2>&1
+fi
+exit 0

@@ -391,6 +391,15 @@ __run_pre_execute_checks() {
 		# safe to clear docker's own pidfile here before each start attempt.
 		[ -f "/tmp/docker.pid" ] && rm -f "/tmp/docker.pid"
 
+		# The nested docker only holds CI scratch (job layers, build cache, pulled images), so start it
+		# from empty data: layers left behind by jobs that were killed mid-run never pile up, and with the
+		# vfs storage driver each of them is a full copy of an image. Set RUNNER_DOCKER_WIPE_ON_START=no to keep it
+		if [ "${RUNNER_DOCKER_WIPE_ON_START:-yes}" = "yes" ]; then
+			for docker_data_dir in buildkit containerd containers image network overlay2 fuse-overlayfs plugins runtimes swarm tmp vfs volumes; do
+				[ -d "/var/lib/docker/$docker_data_dir" ] && rm -rf "/var/lib/docker/${docker_data_dir:?}"
+			done
+		fi
+
 		# Clean up orphaned containers before dockerd starts
 		# This prevents "failed to load container" errors on restart
 		if [ -d "/data/docker/containers" ]; then

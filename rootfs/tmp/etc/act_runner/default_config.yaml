@@ -19,6 +19,13 @@ runner:
   env_file: .env
   # The timeout for a job to be finished.
   timeout: 3h
+  # While idle, remove per-job networks and volumes of jobs this runner did not live to tear down
+  idle_cleanup_interval: 10m
+  # While idle, remove stale workdirs older than this
+  workdir_cleanup_age: 24h
+  # Prune images, build cache, containers and volumes left in the nested docker after every task
+  post_task_script: /usr/local/bin/runner-post-task
+  post_task_script_timeout: 2m
   # Whether skip verifying the TLS certificate of the Gitea instance.
   insecure: true
   # The timeout for fetching the job from the Gitea instance.
@@ -51,6 +58,8 @@ runner:
     #- 'linux:host,ubuntu-latest:docker://catthehacker/ubuntu:full-latest'
 
 container:
+  # Remove containers, networks and volumes a job creates through its docker proxy when the job ends
+  sweep: true
   # Specifies the network to which the container will connect.
   network: 'bridge'
   # Whether to use privileged mode or not when launching task containers (privileged mode is required for Docker-in-Docker).
@@ -69,3 +78,10 @@ cache:
   enabled: true
   external_server: 'http://REPLACE_RUNNER_CACHE_HOST:REPLACE_RUNNER_CACHE_PORT/'
   external_secret: 'REPLACE_RUNNER_CACHE_SECRET'
+
+health_check:
+  # Pause fetching new tasks while free disk space is low instead of filling the disk
+  enabled: true
+  min_free_disk_space_mb: 102400
+  interval: 30s
+  timeout: 10s

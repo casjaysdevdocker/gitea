@@ -25,11 +25,11 @@ set -eo pipefail
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 # Settings - all overridable via environment
 # Only prune containers/networks/build cache older than this (docker duration, e.g. 72h)
-RUNNER_CLEANUP_UNTIL="${RUNNER_CLEANUP_UNTIL:-72h}"
-# Remove all unused images (not just dangling) once the docker data dir reaches this usage percent
-RUNNER_CLEANUP_DISK_PERCENT="${RUNNER_CLEANUP_DISK_PERCENT:-80}"
-# Directory holding the nested dockerd's data, used for the disk usage check
-RUNNER_CLEANUP_DOCKER_DIR="${RUNNER_CLEANUP_DOCKER_DIR:-/data/docker}"
+RUNNER_CLEANUP_UNTIL="${RUNNER_CLEANUP_UNTIL:-6h}"
+# Remove all unused images (not just dangling) once free space on the nested dockerd's filesystem drops below this many MiB
+RUNNER_CLEANUP_MIN_FREE_MB="${RUNNER_CLEANUP_MIN_FREE_MB:-204800}"
+# Directory holding the nested dockerd's data, used for the free space check (empty = ask docker)
+RUNNER_CLEANUP_DOCKER_DIR="${RUNNER_CLEANUP_DOCKER_DIR:-}"
 # Remove cloned actions in act's cache that have not changed in this many days (0 disables)
 RUNNER_CLEANUP_ACT_CACHE_DAYS="${RUNNER_CLEANUP_ACT_CACHE_DAYS:-7}"
 # Space separated list of act action cache directories
@@ -48,15 +48,10 @@ __prune() {
 	fi
 }
 # - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-# Print the usage percent of the filesystem holding $1
-__disk_percent() {
-	df -P "$1" 2>/dev/null | awk 'NR==2 {gsub("%", "", $5); print $5}'
-}
-# - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 if [ "$1" = "--help" ] || [ "$1" = "-h" ]; then
 	printf '%s\n' "Usage: cleanup-runners [--help|--version]" \
 		"Prunes docker containers, volumes, networks, build cache and images left by act runner jobs." \
-		"Env: RUNNER_CLEANUP_UNTIL RUNNER_CLEANUP_DISK_PERCENT RUNNER_CLEANUP_DOCKER_DIR" \
+		"Env: RUNNER_CLEANUP_UNTIL RUNNER_CLEANUP_MIN_FREE_MB RUNNER_CLEANUP_DOCKER_DIR" \
 		"     RUNNER_CLEANUP_ACT_CACHE_DAYS RUNNER_CLEANUP_ACT_CACHE_DIRS RUNNER_CLEANUP_LOG_FILE"
 	exit 0
 elif [ "$1" = "--version" ]; then
@@ -85,10 +80,11 @@ else
 	__prune docker builder prune -af --filter "until=$RUNNER_CLEANUP_UNTIL"
 	# Untagged (dangling) images
 	__prune docker image prune -f
-	# Every image not used by a container, only when disk is getting full; jobs re-pull what they need
-	disk_used="$(__disk_percent "$RUNNER_CLEANUP_DOCKER_DIR" || true)"
-	if [[ "$disk_used" =~ ^[0-9]+$ ]] && [ "$disk_used" -ge "$RUNNER_CLEANUP_DISK_PERCENT" ]; then
-		__log "$RUNNER_CLEANUP_DOCKER_DIR is ${disk_used}% used (limit ${RUNNER_CLEANUP_DISK_PERCENT}%), removing unused images"
+	# Every image not used by a container, only when free space is getting low; jobs re-pull what they need
+	docker_dir="${RUNNER_CLEANUP_DOCKER_DIR:-$(docker info -f '{{.DockerRootDir}}' 2>/dev/null || true)}"
+	free_mb="$(df -Pm "${docker_dir:-/var/lib/docker}" 2>/dev/null | awk 'NR==2 {print $4}' || true)"
+	if [[ "$free_mb" =~ ^[0-9]+$ ]] && [ "$free_mb" -lt "$RUNNER_CLEANUP_MIN_FREE_MB" ]; then
+		__log "${docker_dir:-/var/lib/docker} has ${free_mb} MiB free (limit ${RUNNER_CLEANUP_MIN_FREE_MB}), removing unused images"
 		__prune docker image prune -af
 	fi
 fi
