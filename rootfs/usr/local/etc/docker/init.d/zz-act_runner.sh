@@ -328,10 +328,20 @@ RUNNER_LABELS+="act_runner:docker://catthehacker/ubuntu:full-latest,"
 RUNNER_LABELS+="ubuntu-latest:docker://catthehacker/ubuntu:full-latest"
 unset _HOST_ARCH _ARCH_LABEL
 # - - - - - - - - - - - - - - - - - - - - - - - - -
-# act_runner registers against gitea in the same container/network namespace, so use
-# loopback rather than the detected external IP4_ADDRESS (which can be transient/wrong
-# under Docker-in-Docker networking and caused "no route to host" registration failures)
-RUNNER_IP_ADDRESS="${RUNNER_IP_ADDRESS:-127.0.0.1}"
+# The registered address is also what jobs get as their server URL. Jobs run in containers on
+# the nested dockerd bridge, where 127.0.0.1 is the job container itself, so checkout fails with
+# "Failed to connect to 127.0.0.1 port 80". Use the bridge gateway (same network namespace as
+# the server, reachable from job containers); RUNNER_IP_ADDRESS overrides it
+RUNNER_IP_ADDRESS="${RUNNER_IP_ADDRESS:-}"
+__runner_bridge_ip() {
+	local ip="" tries=0
+	while [ -z "$ip" ] && [ $tries -lt 15 ]; do
+		ip="$(docker network inspect bridge -f '{{(index .IPAM.Config 0).Gateway}}' 2>/dev/null)"
+		[ -n "$ip" ] || ip="$(ip -4 -o addr show docker0 2>/dev/null | awk '{sub(/\/.*/, "", $4); print $4; exit}')"
+		[ -n "$ip" ] || { tries=$((tries + 1)); sleep 2; }
+	done
+	echo "${ip:-127.0.0.1}"
+}
 RUNNER_CONFIG_DEFAULT="${RUNNER_CONFIG_DEFAULT:-$CONF_DIR/default_config.yaml}"
 RUNNER_DEFAULT_HOME="${RUNNER_DEFAULT_HOME:-$CONF_DIR/gitea}"
 RUNNER_CONFIG_NAME="${RUNNER_CONFIG_NAME:-act_runner.yaml}"
@@ -524,6 +534,7 @@ __post_execute() {
 	# message to show at completion
 	local postMessageEnd="Finished post commands for $SERVICE_NAME"
 	export RUNNERS_START="${RUNNERS_START:-5}" RUNNER_LABELS RUNNERS_LOG_DIR="$LOG_DIR"
+	[ -n "$RUNNER_IP_ADDRESS" ] || RUNNER_IP_ADDRESS="$(__runner_bridge_ip)"
 	export SERVER_ADDRESS="$RUNNER_IP_ADDRESS:$GITEA_PORT" SERVER_TOKEN="${RUNNER_AUTH_TOKEN:-$SYS_AUTH_TOKEN}"
 	export RUNNER_CACHE_HOST RUNNER_CACHE_PORT
 	export RUNNER_CACHE_SECRET="${RUNNER_CACHE_SECRET:-$(__gen_cache_secret)}"
